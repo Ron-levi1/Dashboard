@@ -14,10 +14,10 @@ st.set_page_config(
     page_title="דשבורד מחקרים קליניים",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v5-insights-dashboard-2026-06-08"
+APP_VERSION = "v6-polished-ui-insights-2026-06-08"
 
 
 # ============================================================
@@ -31,7 +31,7 @@ st.markdown(
         direction: rtl;
         text-align: right;
         font-family: Arial, sans-serif;
-        background-color: #f4f7fb;
+        background-color: #f3f6fb;
     }
 
     .block-container {
@@ -40,13 +40,25 @@ st.markdown(
         max-width: 1600px;
     }
 
-    section[data-testid="stSidebar"] {
-        display: none;
-    }
-
     h1, h2, h3, h4, h5, h6, p, label, span {
         direction: rtl;
         text-align: right;
+    }
+
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+        color: white;
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: white;
+    }
+
+    section[data-testid="stSidebar"] div[data-testid="stRadio"] label {
+        background: rgba(255,255,255,0.06);
+        border-radius: 12px;
+        padding: 6px 8px;
+        margin-bottom: 4px;
     }
 
     .hero {
@@ -54,13 +66,13 @@ st.markdown(
         color: white;
         padding: 30px 36px;
         border-radius: 28px;
-        margin-bottom: 24px;
+        margin-bottom: 22px;
         box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
     }
 
     .hero h1 {
         color: white;
-        font-size: 2.25rem;
+        font-size: 2.2rem;
         margin: 0 0 8px 0;
         font-weight: 900;
         letter-spacing: -0.5px;
@@ -69,21 +81,29 @@ st.markdown(
     .hero p {
         color: #dbeafe;
         margin: 0;
-        font-size: 1.03rem;
+        font-size: 1.02rem;
     }
 
-    .section-title {
-        font-size: 1.45rem;
-        font-weight: 900;
+    .page-header {
+        background: #ffffff;
+        border: 1px solid #dbe3ef;
+        border-radius: 24px;
+        padding: 20px 24px;
+        margin-bottom: 18px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055);
+    }
+
+    .page-header h2 {
         color: #0f172a;
-        margin: 18px 0 10px 0;
+        font-size: 1.55rem;
+        font-weight: 950;
+        margin: 0 0 6px 0;
     }
 
-    .sub-note {
+    .page-header p {
         color: #64748b;
-        font-size: 0.9rem;
-        margin-top: -4px;
-        margin-bottom: 14px;
+        font-size: 0.95rem;
+        margin: 0;
     }
 
     div[data-testid="stMetric"] {
@@ -110,35 +130,6 @@ st.markdown(
     div[data-testid="stMetricDelta"] {
         direction: ltr;
         text-align: right;
-    }
-
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: #eef2f7;
-        border-radius: 18px;
-        padding: 8px;
-        margin-bottom: 18px;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        background: #ffffff;
-        border-radius: 14px;
-        padding: 11px 18px;
-        border: 1px solid #e2e8f0;
-        color: #0f172a;
-        font-weight: 900;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background: #dbeafe !important;
-        border-color: #60a5fa !important;
-        color: #0f172a !important;
-    }
-
-    div[data-testid="stSelectbox"] label,
-    div[data-testid="stMultiSelect"] label {
-        font-weight: 900;
-        color: #1e293b;
     }
 
     .insight-box {
@@ -315,6 +306,14 @@ st.markdown(
         font-size: 1.02rem;
         font-weight: 900;
         word-break: break-word;
+    }
+
+    .explain-box {
+        background: #ffffff;
+        border: 1px solid #dbe3ef;
+        border-radius: 18px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
     }
 
     @media (max-width: 1000px) {
@@ -533,7 +532,7 @@ def risk_level(score):
     return "תקין"
 
 
-def recommended_action(row):
+def recommended_action(row, balance_col=None):
     reasons = []
 
     if row.get("סטטוס ניצול תקציב - מחושב", "") == "חריגה":
@@ -543,7 +542,7 @@ def recommended_action(row):
         reasons.append("בדיקת יתרת תקציב לפני אישור הוצאות נוספות")
 
     if row.get("סטטוס ניצול תקציב - מחושב", "") == "ניצול נמוך":
-        reasons.append("בדיקת ניצול נמוך והאם נדרש עדכון תקציב/פעילות")
+        reasons.append("בדיקת ניצול נמוך והאם נדרש עדכון פעילות/תקציב")
 
     if row.get("סטטוס גיוס", "") in ["אין גיוס", "גיוס נמוך"]:
         reasons.append("פנייה לחוקר לבדיקת קצב גיוס משתתפים")
@@ -555,12 +554,13 @@ def recommended_action(row):
     except Exception:
         pass
 
-    try:
-        balance = float(row.get("יתרה לניצול", np.nan))
-        if balance < 0:
-            reasons.append("בדיקת יתרה שלילית ופתיחת חריגה")
-    except Exception:
-        pass
+    if balance_col:
+        try:
+            balance = float(row.get(balance_col, np.nan))
+            if balance < 0:
+                reasons.append("בדיקת יתרה שלילית ופתיחת חריגה")
+        except Exception:
+            pass
 
     if not reasons:
         return "ללא פעולה מיידית"
@@ -574,7 +574,16 @@ def badge_html(value):
     if "🔴" in value or "חריגה" in value or "אדום" in value or "סיכון גבוה" in value:
         return f'<span class="badge badge-red">{escape(value)}</span>'
 
-    if "🟡" in value or "צהוב" in value or "ניצול נמוך" in value or "קרוב" in value or "גיוס נמוך" in value or "אין גיוס" in value or "סיכון בינוני" in value:
+    if (
+        "🟡" in value
+        or "צהוב" in value
+        or "ניצול נמוך" in value
+        or "קרוב" in value
+        or "גיוס נמוך" in value
+        or "אין גיוס" in value
+        or "סיכון בינוני" in value
+        or "סיכון נמוך" in value
+    ):
         return f'<span class="badge badge-yellow">{escape(value)}</span>'
 
     if "🟢" in value or "ירוק" in value or "תקין" in value:
@@ -733,6 +742,52 @@ def render_insights(title, insights):
     """
 
     st.markdown(html, unsafe_allow_html=True)
+
+
+def page_header(title, subtitle):
+    st.markdown(
+        f"""
+        <div class="page-header">
+            <h2>{escape(title)}</h2>
+            <p>{escape(subtitle)}</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def explain_metrics():
+    with st.expander("ℹ️ הסבר על המדדים בדשבורד", expanded=False):
+        st.markdown(
+            """
+            **רמת סיכון** היא מדד מחושב שמטרתו לזהות מחקרים שדורשים תשומת לב ניהולית.
+
+            הניקוד מחושב כך:
+
+            | אינדיקציה | ניקוד |
+            |---|---:|
+            | חריגה תקציבית | 3 |
+            | יתרה שלילית | 3 |
+            | גיוס נמוך / אין גיוס | 2 |
+            | מחקר שמסתיים תוך 60 יום | 2 |
+            | קרוב לניצול מלא | 2 |
+            | ניצול נמוך | 1 |
+
+            פירוש הציון:
+
+            | ציון | רמת סיכון |
+            |---:|---|
+            | 0 | תקין |
+            | 1–2 | סיכון נמוך |
+            | 3–5 | סיכון בינוני |
+            | 6 ומעלה | סיכון גבוה |
+
+            **פעולה מומלצת** היא המלצה אוטומטית שנבנית לפי סיבת ההתראה: חריגה תקציבית, גיוס נמוך, סיום קרוב, יתרה שלילית ועוד.
+
+            **רמזור ניהולי** הוא סיווג צבעוני מהיר:
+            🔴 דורש טיפול / חריגה, 🟡 דורש בדיקה, 🟢 תקין.
+            """
+        )
 
 
 def filter_select(df, label, col, key):
@@ -935,6 +990,30 @@ def find_details_sheet(xls, studies_sheet):
 
 
 # ============================================================
+# SIDEBAR NAVIGATION
+# ============================================================
+
+with st.sidebar:
+    st.markdown("## 📊 מחקרים קליניים")
+    st.caption(APP_VERSION)
+
+    page = st.radio(
+        "ניווט",
+        [
+            "📌 תקציר מנהלים",
+            "🏥 כלל בית החולים",
+            "🏢 מחלקות",
+            "👩‍⚕️ חוקרים",
+            "🏭 יזמים",
+            "🚦 סיכונים ותקציב",
+            "🧾 דוח חוקר",
+            "💳 מעקב דרישות תשלום",
+        ],
+        label_visibility="collapsed",
+    )
+
+
+# ============================================================
 # HEADER + UPLOAD
 # ============================================================
 
@@ -942,7 +1021,7 @@ st.markdown(
     f"""
     <div class="hero">
         <h1>📊 דשבורד ניהולי למחקרים קליניים</h1>
-        <p>תובנות הנהלה, ניהול סיכונים, תקציבים, הכנסות, הוצאות, חוקרים, מחלקות ויזמים | {APP_VERSION}</p>
+        <p>תצוגת הנהלה למחקרים, תקציבים, הכנסות, הוצאות, סיכונים, חוקרים, מחלקות ויזמים | {APP_VERSION}</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1111,7 +1190,6 @@ df["רמזור ניהולי"] = df.apply(
 )
 
 risk_score = pd.Series(0, index=df.index)
-
 risk_score += np.where(df["סטטוס ניצול תקציב - מחושב"] == "חריגה", 3, 0)
 risk_score += np.where(df["סטטוס ניצול תקציב - מחושב"] == "קרוב לניצול מלא", 2, 0)
 risk_score += np.where(df["סטטוס ניצול תקציב - מחושב"] == "ניצול נמוך", 1, 0)
@@ -1123,7 +1201,7 @@ if C["balance"] and C["balance"] in df.columns:
 
 df["ציון סיכון"] = risk_score
 df["רמת סיכון"] = df["ציון סיכון"].apply(risk_level)
-df["פעולה מומלצת"] = df.apply(recommended_action, axis=1)
+df["פעולה מומלצת"] = df.apply(lambda row: recommended_action(row, C["balance"]), axis=1)
 
 
 # ============================================================
@@ -1177,18 +1255,13 @@ money_cols = [
 ]
 
 percent_cols = ["% ניצול תקציב - מחושב", "% גיוס משתתפים"]
-
 number_cols = [C["expected_participants"], C["actual_participants"], "ימים לסיום", "ציון סיכון"]
-
 date_cols = [C["approval_date"], C["start_date"], C["end_date"]]
-
-badge_cols = [
-    "סטטוס ניצול תקציב - מחושב", "סטטוס גיוס", "רמזור ניהולי", "רמת סיכון",
-]
+badge_cols = ["סטטוס ניצול תקציב - מחושב", "סטטוס גיוס", "רמזור ניהולי", "רמת סיכון"]
 
 
 # ============================================================
-# EXECUTIVE INSIGHTS
+# INSIGHTS
 # ============================================================
 
 def build_general_insights(data):
@@ -1200,7 +1273,7 @@ def build_general_insights(data):
     total_expenses = sum_col(data, C["total_expenses"])
 
     if total_studies:
-        insights.append((f"נמצאו {number(total_studies)} מחקרים בקובץ הנוכחי.", "success"))
+        insights.append((f"נמצאו {number(total_studies)} מחקרים בהתאם לסינון הנוכחי.", "success"))
 
     if expected_income > 0:
         realization = actual_income / expected_income * 100
@@ -1221,7 +1294,7 @@ def build_general_insights(data):
     if medium_risk_count > 0:
         insights.append((f"{number(medium_risk_count)} מחקרים מסווגים בסיכון בינוני.", "warning"))
 
-    if C["approval_year"] and C["unique_study"]:
+    if C["approval_year"] and C["unique_study"] and C["approval_year"] in data.columns:
         yearly = data.groupby(C["approval_year"])[C["unique_study"]].sum().sort_index()
         if len(yearly) >= 2:
             last_year = yearly.index[-1]
@@ -1235,11 +1308,7 @@ def build_general_insights(data):
                 insights.append((f"בשנת {last_year} נרשמה {direction} של {pct(abs(change))} בכמות המחקרים לעומת {prev_year}.", kind))
 
     if C["department"] and C["unique_study"]:
-        dept_top = (
-            data.groupby(C["department"])[C["unique_study"]]
-            .sum()
-            .sort_values(ascending=False)
-        )
+        dept_top = data.groupby(C["department"])[C["unique_study"]].sum().sort_values(ascending=False)
         if not dept_top.empty:
             insights.append((f"המחלקה המובילה בכמות מחקרים היא {dept_top.index[0]} עם {number(dept_top.iloc[0])} מחקרים.", "success"))
 
@@ -1252,29 +1321,15 @@ def build_general_insights(data):
 
 
 # ============================================================
-# TABS
+# PAGES
 # ============================================================
 
-tabs = st.tabs(
-    [
+if page == "📌 תקציר מנהלים":
+    page_header(
         "📌 תקציר מנהלים",
-        "🏥 כלל בית החולים",
-        "🏢 מחלקות",
-        "👩‍⚕️ חוקרים",
-        "🏭 יזמים",
-        "🚦 סטטוס ניהול תקציב",
-        "🧾 גיליון לחוקר",
-        "💳 מעקב דרישות תשלום",
-    ]
-)
-
-
-# ============================================================
-# TAB 0 - EXECUTIVE SUMMARY
-# ============================================================
-
-with tabs[0]:
-    st.markdown('<div class="section-title">📌 תקציר מנהלים</div>', unsafe_allow_html=True)
+        "תמונת מצב מרוכזת להנהלה: מחקרים, הכנסות, הוצאות, סיכונים ומחקרים הדורשים טיפול."
+    )
+    explain_metrics()
 
     kpi_grid(
         [
@@ -1315,6 +1370,7 @@ with tabs[0]:
             .size()
             .rename(columns={"size": "מספר מחקרים"})
         )
+
         chart_card_start()
         plot_donut(risk_summary, "רמת סיכון", "מספר מחקרים", "התפלגות רמות סיכון", height=360)
         chart_card_end()
@@ -1334,22 +1390,23 @@ with tabs[0]:
     )
 
 
-# ============================================================
-# TAB 1 - HOSPITAL
-# ============================================================
-
-with tabs[1]:
-    st.markdown('<div class="section-title">🏥 כלל בית החולים</div>', unsafe_allow_html=True)
+elif page == "🏥 כלל בית החולים":
+    page_header(
+        "🏥 כלל בית החולים",
+        "ניתוח רוחבי של כלל המחקרים לפי שנים, סוגי מימון, הכנסות, הוצאות וחוקרים מובילים."
+    )
+    explain_metrics()
 
     hospital = df.copy()
 
-    f1, f2, f3 = st.columns(3)
-    with f1:
-        hospital = filter_multiselect(hospital, "שנה", C["approval_year"], key="hospital_year")
-    with f2:
-        hospital = filter_multiselect(hospital, "סוג מימון", C["funding_type"], key="hospital_funding")
-    with f3:
-        hospital = filter_multiselect(hospital, "סוג מחקר", C["study_type"], key="hospital_type")
+    with st.container(border=True):
+        f1, f2, f3 = st.columns(3)
+        with f1:
+            hospital = filter_multiselect(hospital, "שנה", C["approval_year"], key="hospital_year")
+        with f2:
+            hospital = filter_multiselect(hospital, "סוג מימון", C["funding_type"], key="hospital_funding")
+        with f3:
+            hospital = filter_multiselect(hospital, "סוג מחקר", C["study_type"], key="hospital_type")
 
     kpi_grid(
         [
@@ -1404,6 +1461,7 @@ with tabs[1]:
                 .sum()
                 .rename(columns={C["funding_type"]: "סוג מימון", C["unique_study"]: "מספר מחקרים"})
             )
+
             chart_card_start()
             plot_donut(funding, "סוג מימון", "מספר מחקרים", "התפלגות מחקרים לפי סוג מימון")
             chart_card_end()
@@ -1444,6 +1502,7 @@ with tabs[1]:
                 .head(10)
                 .rename(columns={C["pi"]: "חוקר ראשי", C["unique_study"]: "מספר מחקרים"})
             )
+
             chart_card_start()
             plot_top10(top_pi_count, "חוקר ראשי", "מספר מחקרים", "Top 10 חוקרים לפי כמות מחקרים", "מספר מחקרים")
             chart_card_end()
@@ -1457,25 +1516,27 @@ with tabs[1]:
                 .head(10)
                 .rename(columns={C["pi"]: "חוקר ראשי", C["expected_income"]: "צפי הכנסות"})
             )
+
             chart_card_start()
             plot_top10(top_pi_income, "חוקר ראשי", "צפי הכנסות", "Top 10 חוקרים לפי צפי הכנסות", "צפי הכנסות")
             chart_card_end()
 
 
-# ============================================================
-# TAB 2 - DEPARTMENTS
-# ============================================================
-
-with tabs[2]:
-    st.markdown('<div class="section-title">🏢 מחלקות</div>', unsafe_allow_html=True)
+elif page == "🏢 מחלקות":
+    page_header(
+        "🏢 מחלקות",
+        "דוח מחלקתי ממוקד: מחקרים, הכנסות, סיכונים ופעולות מומלצות לפי מחלקה."
+    )
+    explain_metrics()
 
     dept = df.copy()
 
-    f1, f2 = st.columns(2)
-    with f1:
-        dept, selected_dept = filter_select(dept, "מחלקה", C["department"], key="dept_select")
-    with f2:
-        dept = filter_multiselect(dept, "שנה", C["approval_year"], key="dept_year")
+    with st.container(border=True):
+        f1, f2 = st.columns(2)
+        with f1:
+            dept, selected_dept = filter_select(dept, "מחלקה", C["department"], key="dept_select")
+        with f2:
+            dept = filter_multiselect(dept, "שנה", C["approval_year"], key="dept_year")
 
     kpi_grid(
         [
@@ -1525,20 +1586,21 @@ with tabs[2]:
     )
 
 
-# ============================================================
-# TAB 3 - RESEARCHERS
-# ============================================================
-
-with tabs[3]:
-    st.markdown('<div class="section-title">👩‍⚕️ חוקרים</div>', unsafe_allow_html=True)
+elif page == "👩‍⚕️ חוקרים":
+    page_header(
+        "👩‍⚕️ חוקרים",
+        "ניתוח לפי חוקר ראשי: מחקרים, הכנסות, הוצאות, סיכונים ופעולות נדרשות."
+    )
+    explain_metrics()
 
     pi_df = df.copy()
 
-    f1, f2 = st.columns(2)
-    with f1:
-        pi_df, selected_pi = filter_select(pi_df, "חוקר ראשי", C["pi"], key="pi_select")
-    with f2:
-        pi_df = filter_multiselect(pi_df, "שנה", C["approval_year"], key="pi_year")
+    with st.container(border=True):
+        f1, f2 = st.columns(2)
+        with f1:
+            pi_df, selected_pi = filter_select(pi_df, "חוקר ראשי", C["pi"], key="pi_select")
+        with f2:
+            pi_df = filter_multiselect(pi_df, "שנה", C["approval_year"], key="pi_year")
 
     kpi_grid(
         [
@@ -1580,20 +1642,20 @@ with tabs[3]:
     )
 
 
-# ============================================================
-# TAB 4 - SPONSORS
-# ============================================================
-
-with tabs[4]:
-    st.markdown('<div class="section-title">🏭 יזמים</div>', unsafe_allow_html=True)
+elif page == "🏭 יזמים":
+    page_header(
+        "🏭 יזמים",
+        "ניתוח לפי יזם: כמות מחקרים, צפי הכנסות, הכנסות בפועל והוצאות."
+    )
 
     sponsor_df = df.copy()
 
-    f1, f2 = st.columns(2)
-    with f1:
-        sponsor_df = filter_multiselect(sponsor_df, "יזם", C["sponsor"], key="sponsor_select")
-    with f2:
-        sponsor_df = filter_multiselect(sponsor_df, "שנה", C["approval_year"], key="sponsor_year")
+    with st.container(border=True):
+        f1, f2 = st.columns(2)
+        with f1:
+            sponsor_df = filter_multiselect(sponsor_df, "יזם", C["sponsor"], key="sponsor_select")
+        with f2:
+            sponsor_df = filter_multiselect(sponsor_df, "שנה", C["approval_year"], key="sponsor_year")
 
     if C["sponsor"]:
         sponsor_summary = sponsor_df.groupby(C["sponsor"], as_index=False).agg(מספר_רשומות=(C["sponsor"], "size"))
@@ -1667,30 +1729,31 @@ with tabs[4]:
         )
 
 
-# ============================================================
-# TAB 5 - BUDGET STATUS
-# ============================================================
-
-with tabs[5]:
-    st.markdown('<div class="section-title">🚦 סטטוס ניהול תקציב</div>', unsafe_allow_html=True)
+elif page == "🚦 סיכונים ותקציב":
+    page_header(
+        "🚦 סיכונים ותקציב",
+        "דוח התרעות ניהולי: חריגות, סיכון גבוה, גיוס נמוך, ניצול תקציבי וסיום קרוב."
+    )
+    explain_metrics()
 
     status_df = df.copy()
 
-    f1, f2, f3 = st.columns(3)
-    with f1:
-        status_df = filter_multiselect(status_df, "שנה", C["approval_year"], key="status_year")
-    with f2:
-        status_df = filter_multiselect(status_df, "מחלקה", C["department"], key="status_dept")
-    with f3:
-        status_df = filter_multiselect(status_df, "חוקר ראשי", C["pi"], key="status_pi")
+    with st.container(border=True):
+        f1, f2, f3 = st.columns(3)
+        with f1:
+            status_df = filter_multiselect(status_df, "שנה", C["approval_year"], key="status_year")
+        with f2:
+            status_df = filter_multiselect(status_df, "מחלקה", C["department"], key="status_dept")
+        with f3:
+            status_df = filter_multiselect(status_df, "חוקר ראשי", C["pi"], key="status_pi")
 
-    f4, f5, f6 = st.columns(3)
-    with f4:
-        status_df = filter_multiselect(status_df, "סטטוס ניצול", "סטטוס ניצול תקציב - מחושב", key="status_util")
-    with f5:
-        status_df = filter_multiselect(status_df, "רמת סיכון", "רמת סיכון", key="status_risk")
-    with f6:
-        status_df = filter_multiselect(status_df, "סטטוס גיוס", "סטטוס גיוס", key="status_recruit")
+        f4, f5, f6 = st.columns(3)
+        with f4:
+            status_df = filter_multiselect(status_df, "סטטוס ניצול", "סטטוס ניצול תקציב - מחושב", key="status_util")
+        with f5:
+            status_df = filter_multiselect(status_df, "רמת סיכון", "רמת סיכון", key="status_risk")
+        with f6:
+            status_df = filter_multiselect(status_df, "סטטוס גיוס", "סטטוס גיוס", key="status_recruit")
 
     over_budget = status_df[status_df["סטטוס ניצול תקציב - מחושב"] == "חריגה"]
     high_util = status_df[status_df["סטטוס ניצול תקציב - מחושב"] == "קרוב לניצול מלא"]
@@ -1717,6 +1780,7 @@ with tabs[5]:
             .size()
             .rename(columns={"size": "מספר מחקרים"})
         )
+
         chart_card_start()
         plot_donut(risk_summary, "רמת סיכון", "מספר מחקרים", "התפלגות רמות סיכון")
         chart_card_end()
@@ -1727,11 +1791,13 @@ with tabs[5]:
             .size()
             .rename(columns={"size": "מספר מחקרים"})
         )
+
         chart_card_start()
         plot_donut(status_summary, "סטטוס ניצול תקציב - מחושב", "מספר מחקרים", "התפלגות סטטוס ניצול תקציבי")
         chart_card_end()
 
-    alert_tabs = st.tabs(
+    alert_page = st.radio(
+        "בחרי סוג התרעה להצגה",
         [
             "🔴 סיכון גבוה",
             "🔴 חריגה תקציבית",
@@ -1740,23 +1806,42 @@ with tabs[5]:
             "🟡 גיוס נמוך",
             "🟡 סיום קרוב",
             "📋 כל הסטטוסים",
-        ]
+        ],
+        horizontal=True,
     )
 
-    with alert_tabs[0]:
-        render_table(high_risk, "מחקרים בסיכון גבוה", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
-    with alert_tabs[1]:
-        render_table(over_budget, "מחקרים בחריגה תקציבית", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
-    with alert_tabs[2]:
-        render_table(high_util, "מחקרים קרובים לניצול מלא", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
-    with alert_tabs[3]:
-        render_table(low_util, "מחקרים בניצול נמוך", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
-    with alert_tabs[4]:
-        render_table(low_recruit, "מחקרים עם גיוס נמוך / ללא גיוס", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
-    with alert_tabs[5]:
-        render_table(ending_soon, "מחקרים שמסתיימים תוך 60 יום", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
-    with alert_tabs[6]:
-        render_table(status_df, "טבלת סטטוס ניהול תקציב", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
+    if alert_page == "🔴 סיכון גבוה":
+        table_data = high_risk
+        title = "מחקרים בסיכון גבוה"
+    elif alert_page == "🔴 חריגה תקציבית":
+        table_data = over_budget
+        title = "מחקרים בחריגה תקציבית"
+    elif alert_page == "🟡 קרוב לניצול מלא":
+        table_data = high_util
+        title = "מחקרים קרובים לניצול מלא"
+    elif alert_page == "🟡 ניצול נמוך":
+        table_data = low_util
+        title = "מחקרים בניצול נמוך"
+    elif alert_page == "🟡 גיוס נמוך":
+        table_data = low_recruit
+        title = "מחקרים עם גיוס נמוך / ללא גיוס"
+    elif alert_page == "🟡 סיום קרוב":
+        table_data = ending_soon
+        title = "מחקרים שמסתיימים תוך 60 יום"
+    else:
+        table_data = status_df
+        title = "טבלת סטטוס ניהול תקציב"
+
+    render_table(
+        table_data,
+        title,
+        budget_status_cols,
+        money_cols=money_cols,
+        percent_cols=percent_cols,
+        number_cols=number_cols,
+        date_cols=date_cols,
+        badge_cols=badge_cols,
+    )
 
     risk_excel = download_excel_openpyxl({"risk_report": status_df})
     st.download_button(
@@ -1767,20 +1852,21 @@ with tabs[5]:
     )
 
 
-# ============================================================
-# TAB 6 - RESEARCHER SHEET
-# ============================================================
-
-with tabs[6]:
-    st.markdown('<div class="section-title">🧾 גיליון לחוקר</div>', unsafe_allow_html=True)
+elif page == "🧾 דוח חוקר":
+    page_header(
+        "🧾 דוח חוקר",
+        "בחירת חוקר, הצגת רשימת מחקרים מקוצרת ותעודת זהות מפורטת למחקר נבחר."
+    )
+    explain_metrics()
 
     r_df = df.copy()
 
-    f1, f2 = st.columns(2)
-    with f1:
-        r_df, selected_researcher = filter_select(r_df, "חוקר", C["pi"], key="researcher_sheet_select")
-    with f2:
-        r_df = filter_multiselect(r_df, "שנה", C["approval_year"], key="researcher_sheet_year")
+    with st.container(border=True):
+        f1, f2 = st.columns(2)
+        with f1:
+            r_df, selected_researcher = filter_select(r_df, "חוקר", C["pi"], key="researcher_sheet_select")
+        with f2:
+            r_df = filter_multiselect(r_df, "שנה", C["approval_year"], key="researcher_sheet_year")
 
     kpi_grid(
         [
@@ -1805,7 +1891,10 @@ with tabs[6]:
     )
 
     if C["study_id"] and not r_df.empty:
-        st.markdown('<div class="section-title">תעודת זהות למחקר</div>', unsafe_allow_html=True)
+        page_header(
+            "תעודת זהות למחקר",
+            "בחרי מחקר מתוך רשימת המחקרים של החוקר כדי לפתוח כרטיס מחקר מפורט."
+        )
 
         study_options = sorted(r_df[C["study_id"]].dropna().astype(str).unique())
         selected_study = st.selectbox("בחרי מחקר לפתיחת תעודת זהות", study_options, key="identity_study_select")
@@ -1849,21 +1938,21 @@ with tabs[6]:
             )
 
 
-# ============================================================
-# TAB 7 - PAYMENT TRACKING
-# ============================================================
-
-with tabs[7]:
-    st.markdown('<div class="section-title">💳 מעקב דרישות תשלום</div>', unsafe_allow_html=True)
+elif page == "💳 מעקב דרישות תשלום":
+    page_header(
+        "💳 מעקב דרישות תשלום",
+        "מעקב תקציבי לפי חוקר/מחקר: תקציב, התחייבויות, ביצוע, יתרה ופירוט לפי קטגוריות."
+    )
 
     payment_source = df.copy()
 
-    payment_source, payment_researcher = filter_select(
-        payment_source,
-        "חוקר",
-        C["pi"],
-        key="payment_researcher_select",
-    )
+    with st.container(border=True):
+        payment_source, payment_researcher = filter_select(
+            payment_source,
+            "חוקר",
+            C["pi"],
+            key="payment_researcher_select",
+        )
 
     study_ids = (
         payment_source[C["study_id"]].dropna().astype(str).unique().tolist()
