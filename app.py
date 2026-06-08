@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from io import BytesIO
+from html import escape
 
 
 # ============================================================
@@ -16,11 +17,11 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-APP_VERSION = "v3-professional-dashboard-2026-06-08"
+APP_VERSION = "v4-executive-dashboard-2026-06-08"
 
 
 # ============================================================
-# CSS DESIGN
+# GLOBAL DESIGN
 # ============================================================
 
 st.markdown(
@@ -30,12 +31,13 @@ st.markdown(
         direction: rtl;
         text-align: right;
         font-family: Arial, sans-serif;
+        background-color: #f5f7fb;
     }
 
     .block-container {
-        padding-top: 1.1rem;
+        padding-top: 1rem;
         padding-bottom: 2rem;
-        max-width: 1550px;
+        max-width: 1580px;
     }
 
     section[data-testid="stSidebar"] {
@@ -47,69 +49,114 @@ st.markdown(
         text-align: right;
     }
 
-    .main-hero {
-        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 52%, #0e7490 100%);
+    .hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 48%, #0f766e 100%);
         color: white;
-        padding: 28px 32px;
-        border-radius: 26px;
-        margin-bottom: 22px;
-        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.22);
+        padding: 28px 34px;
+        border-radius: 28px;
+        margin-bottom: 24px;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
     }
 
-    .main-hero h1 {
+    .hero h1 {
         color: white;
-        font-size: 2.2rem;
+        font-size: 2.25rem;
         margin: 0 0 8px 0;
         font-weight: 900;
+        letter-spacing: -0.5px;
     }
 
-    .main-hero p {
+    .hero p {
         color: #dbeafe;
         margin: 0;
-        font-size: 1.05rem;
+        font-size: 1.03rem;
     }
 
-    .section-card {
+    .section-title {
+        font-size: 1.45rem;
+        font-weight: 900;
+        color: #0f172a;
+        margin: 18px 0 10px 0;
+    }
+
+    .sub-note {
+        color: #64748b;
+        font-size: 0.9rem;
+        margin-top: -4px;
+        margin-bottom: 14px;
+    }
+
+    .filter-box {
+        background: #ffffff;
+        border: 1px solid #dbe3ef;
+        border-radius: 20px;
+        padding: 16px 18px;
+        margin-bottom: 18px;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+    }
+
+    .chart-card {
         background: #ffffff;
         border: 1px solid #e2e8f0;
         border-radius: 22px;
-        padding: 20px 22px;
+        padding: 16px 18px 8px 18px;
         margin-bottom: 18px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(160px, 1fr));
+        gap: 14px;
+        margin: 12px 0 20px 0;
+    }
+
+    .kpi-card {
+        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid #dbe3ef;
+        border-radius: 20px;
+        padding: 16px 18px;
+        min-height: 105px;
         box-shadow: 0 8px 24px rgba(15, 23, 42, 0.055);
     }
 
-    .filter-card {
-        background: #f8fafc;
-        border: 1px solid #dbe3ef;
-        border-radius: 18px;
-        padding: 16px 18px;
-        margin-bottom: 16px;
+    .kpi-label {
+        color: #64748b;
+        font-size: 0.88rem;
+        font-weight: 800;
+        margin-bottom: 10px;
     }
 
-    div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        border: 1px solid #dbe3ef;
-        padding: 18px;
-        border-radius: 18px;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.055);
-        min-height: 105px;
-    }
-
-    div[data-testid="stMetricLabel"] {
-        color: #475569;
-        font-size: 0.95rem;
-        font-weight: 700;
-    }
-
-    div[data-testid="stMetricValue"] {
+    .kpi-value {
         color: #0f172a;
-        font-size: 1.38rem;
-        font-weight: 900;
+        font-size: 1.42rem;
+        font-weight: 950;
+        line-height: 1.2;
+    }
+
+    .kpi-red {
+        border-right: 6px solid #ef4444;
+    }
+
+    .kpi-yellow {
+        border-right: 6px solid #f59e0b;
+    }
+
+    .kpi-green {
+        border-right: 6px solid #10b981;
+    }
+
+    .kpi-blue {
+        border-right: 6px solid #3b82f6;
+    }
+
+    .kpi-purple {
+        border-right: 6px solid #8b5cf6;
     }
 
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
-        background: #f8fafc;
+        background: #eef2f7;
         border-radius: 18px;
         padding: 8px;
         margin-bottom: 18px;
@@ -121,7 +168,7 @@ st.markdown(
         padding: 11px 18px;
         border: 1px solid #e2e8f0;
         color: #0f172a;
-        font-weight: 800;
+        font-weight: 900;
     }
 
     .stTabs [aria-selected="true"] {
@@ -130,58 +177,145 @@ st.markdown(
         color: #0f172a !important;
     }
 
-    div[data-testid="stDataFrame"] {
-        direction: rtl;
-        text-align: right;
-        border-radius: 18px;
-    }
-
-    div[data-testid="stDataFrame"] * {
-        direction: rtl;
-        text-align: right;
-    }
-
     div[data-testid="stSelectbox"] label,
     div[data-testid="stMultiSelect"] label {
-        font-weight: 800;
+        font-weight: 900;
         color: #1e293b;
     }
 
-    .alert-red {
-        background: #fef2f2;
+    .table-wrap {
+        background: #ffffff;
+        border: 1px solid #dbe3ef;
+        border-radius: 22px;
+        padding: 14px;
+        margin-top: 8px;
+        margin-bottom: 18px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    }
+
+    .table-title {
+        color: #0f172a;
+        font-size: 1.18rem;
+        font-weight: 950;
+        margin-bottom: 10px;
+    }
+
+    .table-scroll {
+        overflow: auto;
+        max-height: 430px;
+        border-radius: 16px;
+        border: 1px solid #e5e7eb;
+    }
+
+    table.prof-table {
+        width: 100%;
+        border-collapse: collapse;
+        direction: rtl;
+        text-align: right;
+        font-size: 0.9rem;
+        background: white;
+    }
+
+    table.prof-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #0f172a;
+        color: white;
+        padding: 11px 12px;
+        border-bottom: 1px solid #334155;
+        white-space: nowrap;
+        font-weight: 900;
+    }
+
+    table.prof-table tbody td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        color: #0f172a;
+        white-space: nowrap;
+        max-width: 260px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    table.prof-table tbody tr:nth-child(even) {
+        background: #f8fafc;
+    }
+
+    table.prof-table tbody tr:hover {
+        background: #e0f2fe;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 900;
+        font-size: 0.78rem;
+        white-space: nowrap;
+    }
+
+    .badge-red {
+        background: #fee2e2;
         color: #991b1b;
         border: 1px solid #fecaca;
-        border-radius: 16px;
-        padding: 14px 16px;
-        font-weight: 800;
-        margin-bottom: 12px;
     }
 
-    .alert-yellow {
-        background: #fffbeb;
+    .badge-yellow {
+        background: #fef3c7;
         color: #92400e;
         border: 1px solid #fde68a;
-        border-radius: 16px;
-        padding: 14px 16px;
-        font-weight: 800;
-        margin-bottom: 12px;
     }
 
-    .alert-green {
-        background: #ecfdf5;
-        color: #065f46;
-        border: 1px solid #a7f3d0;
-        border-radius: 16px;
-        padding: 14px 16px;
-        font-weight: 800;
-        margin-bottom: 12px;
+    .badge-green {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
     }
 
-    .small-caption {
+    .badge-blue {
+        background: #dbeafe;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+    }
+
+    .identity-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(190px, 1fr));
+        gap: 14px;
+        margin: 10px 0 20px 0;
+    }
+
+    .identity-card {
+        background: #ffffff;
+        border: 1px solid #dbe3ef;
+        border-radius: 18px;
+        padding: 14px 16px;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+        min-height: 88px;
+    }
+
+    .identity-label {
         color: #64748b;
-        font-size: 0.86rem;
-        margin-top: -8px;
-        margin-bottom: 12px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        margin-bottom: 8px;
+    }
+
+    .identity-value {
+        color: #0f172a;
+        font-size: 1.02rem;
+        font-weight: 900;
+        word-break: break-word;
+    }
+
+    @media (max-width: 1000px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .identity-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
     </style>
     """,
@@ -200,8 +334,7 @@ def normalize_text(value):
     value = value.replace("\u200f", "").replace("\u200e", "")
     value = value.replace("–", "-").replace("—", "-").replace("−", "-")
     value = value.replace("״", '"').replace("”", '"').replace("“", '"')
-    value = " ".join(value.split())
-    return value.strip()
+    return " ".join(value.split()).strip()
 
 
 def normalize_columns(df):
@@ -213,9 +346,9 @@ def normalize_columns(df):
 def find_col(df, candidates):
     normalized = {normalize_text(col): col for col in df.columns}
     for candidate in candidates:
-        c = normalize_text(candidate)
-        if c in normalized:
-            return normalized[c]
+        candidate = normalize_text(candidate)
+        if candidate in normalized:
+            return normalized[candidate]
     return None
 
 
@@ -270,7 +403,6 @@ def compact_number(value):
         return "0"
 
     abs_value = abs(value)
-
     if abs_value >= 1_000_000:
         return f"{value / 1_000_000:.1f}M"
     if abs_value >= 1_000:
@@ -286,9 +418,9 @@ def sum_col(df, col):
 
 def count_unique_studies(df, unique_col=None, study_id_col=None):
     if unique_col and unique_col in df.columns:
-        s = to_numeric(df[unique_col]).sum()
-        if s > 0:
-            return s
+        val = to_numeric(df[unique_col]).sum()
+        if val > 0:
+            return val
 
     if study_id_col and study_id_col in df.columns:
         return df[study_id_col].dropna().astype(str).nunique()
@@ -307,69 +439,17 @@ def download_excel_openpyxl(sheets_dict):
     return output.getvalue()
 
 
-def clean_for_display(df):
-    display = df.copy()
-    display = display.replace({np.nan: "", None: ""})
-    display = display.astype(object)
-    return display
-
-
-def format_table_values(df, money_cols=None, percent_cols=None, number_cols=None, date_cols=None):
-    display = clean_for_display(df)
-
-    money_cols = money_cols or []
-    percent_cols = percent_cols or []
-    number_cols = number_cols or []
-    date_cols = date_cols or []
-
-    for col in money_cols:
-        if col and col in display.columns:
-            display[col] = to_numeric(display[col]).apply(money)
-
-    for col in percent_cols:
-        if col and col in display.columns:
-            display[col] = to_numeric(display[col]).apply(pct)
-
-    for col in number_cols:
-        if col and col in display.columns:
-            display[col] = to_numeric(display[col]).apply(number)
-
-    for col in date_cols:
-        if col and col in display.columns:
-            display[col] = pd.to_datetime(display[col], errors="coerce").dt.strftime("%d/%m/%Y").fillna("")
-
-    return display
-
-
-def display_table(df, columns=None, title=None, height=420, money_cols=None, percent_cols=None, number_cols=None, date_cols=None):
-    if title:
-        st.subheader(title)
-
-    if df is None or df.empty:
-        st.info("אין נתונים להצגה בהתאם לבחירה הנוכחית.")
-        return
-
-    data = df.copy()
-
-    if columns:
-        columns = [col for col in columns if col and col in data.columns]
-        if columns:
-            data = data[columns]
-
-    data = format_table_values(
-        data,
-        money_cols=money_cols,
-        percent_cols=percent_cols,
-        number_cols=number_cols,
-        date_cols=date_cols,
-    )
-
-    st.dataframe(
-        data,
-        use_container_width=True,
-        hide_index=True,
-        height=height,
-    )
+def safe_value(value):
+    if pd.isna(value):
+        return ""
+    if value is None:
+        return ""
+    text = str(value)
+    if text.lower() in ["nan", "none", "nat"]:
+        return ""
+    if text.endswith(".0") and text.replace(".0", "").replace("-", "").isdigit():
+        text = text.replace(".0", "")
+    return text
 
 
 def budget_status(value):
@@ -433,11 +513,161 @@ def traffic_light(status, balance=None, days_to_end=None, recruitment_pct=None):
     return "🟢 ירוק"
 
 
-def shorten_label(value, max_len=24):
-    value = str(value)
-    if len(value) <= max_len:
-        return value
-    return value[:max_len - 3] + "..."
+def badge_html(value):
+    value = safe_value(value)
+
+    if "🔴" in value or "חריגה" in value or "אדום" in value:
+        return f'<span class="badge badge-red">{escape(value)}</span>'
+
+    if "🟡" in value or "צהוב" in value or "ניצול נמוך" in value or "קרוב" in value or "גיוס נמוך" in value or "אין גיוס" in value:
+        return f'<span class="badge badge-yellow">{escape(value)}</span>'
+
+    if "🟢" in value or "ירוק" in value or "תקין" in value:
+        return f'<span class="badge badge-green">{escape(value)}</span>'
+
+    return f'<span class="badge badge-blue">{escape(value)}</span>'
+
+
+def format_cell(value, col, money_cols=None, percent_cols=None, number_cols=None, date_cols=None, badge_cols=None):
+    money_cols = money_cols or []
+    percent_cols = percent_cols or []
+    number_cols = number_cols or []
+    date_cols = date_cols or []
+    badge_cols = badge_cols or []
+
+    if col in badge_cols:
+        return badge_html(value)
+
+    if col in money_cols:
+        return escape(money(value))
+
+    if col in percent_cols:
+        return escape(pct(value))
+
+    if col in number_cols:
+        return escape(number(value))
+
+    if col in date_cols:
+        try:
+            dt = pd.to_datetime(value, errors="coerce")
+            if pd.isna(dt):
+                return ""
+            return escape(dt.strftime("%d/%m/%Y"))
+        except Exception:
+            return ""
+
+    return escape(safe_value(value))
+
+
+def render_table(
+    df,
+    title=None,
+    columns=None,
+    max_rows=150,
+    money_cols=None,
+    percent_cols=None,
+    number_cols=None,
+    date_cols=None,
+    badge_cols=None,
+    height=430,
+):
+    if title:
+        st.markdown(f'<div class="table-title">{escape(title)}</div>', unsafe_allow_html=True)
+
+    if df is None or df.empty:
+        st.info("אין נתונים להצגה בהתאם לבחירה הנוכחית.")
+        return
+
+    data = df.copy()
+
+    if columns:
+        columns = [c for c in columns if c and c in data.columns]
+        if columns:
+            data = data[columns]
+
+    if data.empty:
+        st.info("אין נתונים להצגה בהתאם לבחירה הנוכחית.")
+        return
+
+    if len(data) > max_rows:
+        st.caption(f"מוצגות {max_rows} שורות מתוך {len(data):,}. ניתן להוריד את הדוח המלא לאקסל.")
+        data = data.head(max_rows)
+
+    headers = "".join([f"<th>{escape(str(col))}</th>" for col in data.columns])
+
+    rows_html = []
+    for _, row in data.iterrows():
+        cells = []
+        for col in data.columns:
+            cells.append(
+                f"<td>{format_cell(row[col], col, money_cols, percent_cols, number_cols, date_cols, badge_cols)}</td>"
+            )
+        rows_html.append("<tr>" + "".join(cells) + "</tr>")
+
+    html = f"""
+    <div class="table-wrap">
+        <div class="table-scroll" style="max-height:{height}px;">
+            <table class="prof-table">
+                <thead>
+                    <tr>{headers}</tr>
+                </thead>
+                <tbody>
+                    {''.join(rows_html)}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    """
+
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def kpi_grid(items):
+    html_items = []
+    color_classes = ["kpi-blue", "kpi-green", "kpi-purple", "kpi-yellow", "kpi-red"]
+
+    for i, (label, value) in enumerate(items):
+        css_class = color_classes[i % len(color_classes)]
+        html_items.append(
+            f"""
+            <div class="kpi-card {css_class}">
+                <div class="kpi-label">{escape(str(label))}</div>
+                <div class="kpi-value">{escape(str(value))}</div>
+            </div>
+            """
+        )
+
+    html = f'<div class="kpi-grid">{"".join(html_items)}</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def identity_grid(items):
+    html_items = []
+    for label, value in items:
+        html_items.append(
+            f"""
+            <div class="identity-card">
+                <div class="identity-label">{escape(str(label))}</div>
+                <div class="identity-value">{escape(safe_value(value))}</div>
+            </div>
+            """
+        )
+
+    html = f'<div class="identity-grid">{"".join(html_items)}</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+
+def filter_select(df, label, col, key):
+    if not col or col not in df.columns:
+        return df, None
+
+    values = sorted(df[col].dropna().astype(str).unique())
+
+    if not values:
+        return df.iloc[0:0], None
+
+    selected = st.selectbox(label, values, key=key)
+    return df[df[col].astype(str) == selected], selected
 
 
 def filter_multiselect(df, label, col, key, default_all=True):
@@ -451,12 +681,7 @@ def filter_multiselect(df, label, col, key, default_all=True):
 
     default = values if default_all else []
 
-    selected = st.multiselect(
-        label,
-        values,
-        default=default,
-        key=key,
-    )
+    selected = st.multiselect(label, values, default=default, key=key)
 
     if selected:
         return df[df[col].astype(str).isin(selected)]
@@ -464,86 +689,69 @@ def filter_multiselect(df, label, col, key, default_all=True):
     return df.iloc[0:0]
 
 
-def filter_select(df, label, col, key):
-    if not col or col not in df.columns:
-        return df, None
-
-    values = sorted(df[col].dropna().astype(str).unique())
-
-    if not values:
-        return df.iloc[0:0], None
-
-    selected = st.selectbox(label, values, key=key)
-
-    return df[df[col].astype(str) == selected], selected
+def shorten_label(value, max_len=26):
+    text = safe_value(value)
+    if len(text) <= max_len:
+        return text
+    return text[: max_len - 3] + "..."
 
 
-def show_kpis(items, columns_per_row=5):
-    if not items:
-        return
+def plotly_base(fig, height=420):
+    fig.update_layout(
+        height=height,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font=dict(size=13, color="#334155"),
+        title=dict(x=0.5, font=dict(size=18, color="#0f172a")),
+        margin=dict(l=40, r=40, t=80, b=60),
+        legend=dict(
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.02,
+            title="",
+        ),
+    )
+    return fig
 
-    for start in range(0, len(items), columns_per_row):
-        chunk = items[start:start + columns_per_row]
-        cols = st.columns(len(chunk))
-        for col, (label, value) in zip(cols, chunk):
-            col.metric(label, value)
+
+def chart_card_start():
+    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
 
 
-def plot_bar(data, x, y, title, x_title=None, y_title=None, height=420):
-    if data is None or data.empty or x not in data.columns or y not in data.columns:
+def chart_card_end():
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def plot_vertical_bar(df, x, y, title, x_title=None, y_title=None, height=390):
+    if df is None or df.empty or x not in df.columns or y not in df.columns:
         st.info("אין מספיק נתונים להצגת הגרף.")
         return
 
-    plot_data = data.copy()
+    plot_data = df.copy()
     plot_data[x] = plot_data[x].astype(str)
     plot_data["_text"] = plot_data[y].apply(compact_number)
 
-    fig = px.bar(
-        plot_data,
-        x=x,
-        y=y,
-        text="_text",
-        title=title,
-    )
-
-    fig.update_traces(
-        textposition="outside",
-        cliponaxis=False,
-        marker_line_width=0,
-    )
-
+    fig = px.bar(plot_data, x=x, y=y, text="_text", title=title)
+    fig.update_traces(textposition="outside", cliponaxis=False, marker_color="#2563eb")
     fig.update_layout(
-        title_x=0.5,
-        height=height,
-        bargap=0.35,
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        margin=dict(l=45, r=35, t=80, b=70),
-        xaxis=dict(
-            type="category",
-            tickmode="array",
-            tickvals=plot_data[x].tolist(),
-            ticktext=plot_data[x].tolist(),
-            title=x_title or x,
-        ),
-        yaxis=dict(
-            title=y_title or y,
-            gridcolor="#e2e8f0",
-        ),
-        font=dict(size=13),
+        xaxis=dict(type="category", title=x_title or x),
+        yaxis=dict(title=y_title or y, gridcolor="#e2e8f0"),
+        bargap=0.38,
     )
-
+    fig = plotly_base(fig, height=height)
     st.plotly_chart(fig, use_container_width=True)
 
 
-def plot_grouped_bar(data, x, y_cols, title, x_title=None, y_title=None, height=440):
-    y_cols = [col for col in y_cols if col and col in data.columns]
+def plot_grouped_bar(df, x, y_cols, title, x_title=None, y_title=None, height=430):
+    y_cols = [col for col in y_cols if col and col in df.columns]
 
-    if data is None or data.empty or x not in data.columns or not y_cols:
+    if df is None or df.empty or x not in df.columns or not y_cols:
         st.info("אין מספיק נתונים להצגת הגרף.")
         return
 
-    plot_data = data.copy()
+    plot_data = df.copy()
     plot_data[x] = plot_data[x].astype(str)
 
     melted = plot_data.melt(
@@ -552,7 +760,6 @@ def plot_grouped_bar(data, x, y_cols, title, x_title=None, y_title=None, height=
         var_name="מדד",
         value_name="ערך",
     )
-
     melted["תווית"] = melted["ערך"].apply(compact_number)
 
     fig = px.bar(
@@ -563,60 +770,49 @@ def plot_grouped_bar(data, x, y_cols, title, x_title=None, y_title=None, height=
         barmode="group",
         text="תווית",
         title=title,
+        color_discrete_sequence=["#1d4ed8", "#38bdf8", "#ef4444", "#a78bfa", "#10b981"],
     )
 
-    fig.update_traces(
-        textposition="outside",
-        cliponaxis=False,
-        marker_line_width=0,
-    )
-
+    fig.update_traces(textposition="outside", cliponaxis=False)
     fig.update_layout(
-        title_x=0.5,
-        height=height,
-        bargap=0.32,
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        margin=dict(l=45, r=35, t=90, b=70),
-        xaxis=dict(
-            type="category",
-            title=x_title or x,
-            tickmode="array",
-            tickvals=plot_data[x].astype(str).tolist(),
-            ticktext=plot_data[x].astype(str).tolist(),
-        ),
-        yaxis=dict(
-            title=y_title or "סכום",
-            gridcolor="#e2e8f0",
-        ),
-        legend=dict(
-            orientation="v",
-            yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.02,
-            title="",
-        ),
-        font=dict(size=13),
+        xaxis=dict(type="category", title=x_title or x),
+        yaxis=dict(title=y_title or "סכום", gridcolor="#e2e8f0"),
+        bargap=0.34,
     )
-
+    fig = plotly_base(fig, height=height)
     st.plotly_chart(fig, use_container_width=True)
 
 
-def plot_horizontal_top10(data, label_col, value_col, title, x_title=None, height=None):
-    if data is None or data.empty or label_col not in data.columns or value_col not in data.columns:
+def plot_donut(df, names, values, title, height=390):
+    if df is None or df.empty or names not in df.columns or values not in df.columns:
         st.info("אין מספיק נתונים להצגת הגרף.")
         return
 
-    plot_data = data.copy()
-    plot_data = plot_data.sort_values(value_col, ascending=True).tail(10)
+    fig = px.pie(
+        df,
+        names=names,
+        values=values,
+        hole=0.52,
+        title=title,
+        color_discrete_sequence=["#2563eb", "#06b6d4", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#64748b"],
+    )
+    fig.update_traces(textposition="inside", textinfo="percent+label")
+    fig = plotly_base(fig, height=height)
+    st.plotly_chart(fig, use_container_width=True)
 
-    plot_data["שם מקוצר"] = plot_data[label_col].astype(str).apply(lambda x: shorten_label(x, 32))
+
+def plot_top10(df, label_col, value_col, title, x_title=None, height=430):
+    if df is None or df.empty or label_col not in df.columns or value_col not in df.columns:
+        st.info("אין מספיק נתונים להצגת הגרף.")
+        return
+
+    plot_data = df.copy()
+    plot_data = plot_data.sort_values(value_col, ascending=True).tail(10)
+    plot_data["שם מקוצר"] = plot_data[label_col].apply(lambda x: shorten_label(x, 28))
     plot_data["שם מלא"] = plot_data[label_col].astype(str)
     plot_data["תווית"] = plot_data[value_col].apply(compact_number)
 
-    if height is None:
-        height = max(430, 52 * len(plot_data) + 140)
+    dynamic_height = max(height, len(plot_data) * 48 + 150)
 
     fig = px.bar(
         plot_data,
@@ -624,97 +820,26 @@ def plot_horizontal_top10(data, label_col, value_col, title, x_title=None, heigh
         y="שם מקוצר",
         orientation="h",
         text="תווית",
+        title=title,
         hover_data={"שם מלא": True, value_col: ":,.0f", "שם מקוצר": False},
-        title=title,
     )
 
-    fig.update_traces(
-        textposition="outside",
-        cliponaxis=False,
-        marker_line_width=0,
-    )
-
+    fig.update_traces(textposition="outside", cliponaxis=False, marker_color="#2563eb")
     fig.update_layout(
-        title_x=0.5,
-        height=height,
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        margin=dict(l=230, r=80, t=85, b=55),
-        xaxis=dict(
-            title=x_title or value_col,
-            gridcolor="#e2e8f0",
-        ),
-        yaxis=dict(
-            title="",
-            automargin=True,
-        ),
-        font=dict(size=13),
+        xaxis=dict(title=x_title or value_col, gridcolor="#e2e8f0"),
+        yaxis=dict(title="", automargin=True),
         showlegend=False,
+        margin=dict(l=170, r=85, t=80, b=50),
     )
-
+    fig = plotly_base(fig, height=dynamic_height)
     st.plotly_chart(fig, use_container_width=True)
 
 
-def plot_donut(data, names, values, title, height=420):
-    if data is None or data.empty or names not in data.columns or values not in data.columns:
-        st.info("אין מספיק נתונים להצגת הגרף.")
-        return
-
-    fig = px.pie(
-        data,
-        names=names,
-        values=values,
-        hole=0.45,
-        title=title,
-    )
-
-    fig.update_traces(
-        textposition="inside",
-        textinfo="percent+label",
-    )
-
-    fig.update_layout(
-        title_x=0.5,
-        height=height,
-        paper_bgcolor="white",
-        margin=dict(l=20, r=20, t=80, b=20),
-        legend=dict(orientation="v", y=0.5),
-        font=dict(size=13),
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-
-def find_studies_sheet(xls):
-    for sheet_name in xls.sheet_names:
-        if normalize_text(sheet_name).lower() == "studies_data":
-            return sheet_name
-    return xls.sheet_names[0]
-
-
-def find_details_sheet(xls, studies_sheet):
-    for sheet_name in xls.sheet_names:
-        if sheet_name == studies_sheet:
-            continue
-
-        sample = normalize_columns(pd.read_excel(xls, sheet_name=sheet_name, nrows=10))
-
-        if find_col(sample, ["קטגוריית סעיף תקציבי"]) or find_col(sample, ["מספר הלסינקי"]):
-            return sheet_name
-
-    other_sheets = [s for s in xls.sheet_names if s != studies_sheet]
-
-    if other_sheets:
-        return other_sheets[0]
-
-    return studies_sheet
-
-
-def top10_plus_other(data, group_col, value_col, group_name, value_name):
-    if not group_col or not value_col or group_col not in data.columns or value_col not in data.columns:
+def top10_plus_other(df, group_col, value_col, group_name, value_name):
+    if not group_col or not value_col or group_col not in df.columns or value_col not in df.columns:
         return pd.DataFrame()
 
-    temp = data.copy()
+    temp = df.copy()
     temp[value_col] = to_numeric(temp[value_col])
 
     grouped = (
@@ -736,15 +861,36 @@ def top10_plus_other(data, group_col, value_col, group_name, value_name):
     return top10
 
 
+def find_studies_sheet(xls):
+    for sheet_name in xls.sheet_names:
+        if normalize_text(sheet_name).lower() == "studies_data":
+            return sheet_name
+    return xls.sheet_names[0]
+
+
+def find_details_sheet(xls, studies_sheet):
+    for sheet_name in xls.sheet_names:
+        if sheet_name == studies_sheet:
+            continue
+
+        sample = normalize_columns(pd.read_excel(xls, sheet_name=sheet_name, nrows=10))
+
+        if find_col(sample, ["קטגוריית סעיף תקציבי"]) or find_col(sample, ["מספר הלסינקי"]):
+            return sheet_name
+
+    others = [s for s in xls.sheet_names if s != studies_sheet]
+    return others[0] if others else studies_sheet
+
+
 # ============================================================
-# HEADER + FILE UPLOAD
+# HEADER + UPLOAD
 # ============================================================
 
 st.markdown(
     f"""
-    <div class="main-hero">
+    <div class="hero">
         <h1>📊 דשבורד ניהולי למחקרים קליניים</h1>
-        <p>ניתוח מחקרים, הכנסות, הוצאות, תקציבים, חוקרים, מחלקות, יזמים ורמזור ניהולי | {APP_VERSION}</p>
+        <p>תצוגת הנהלה למחקרים, תקציבים, הכנסות, הוצאות, חוקרים, מחלקות ויזמים | {APP_VERSION}</p>
     </div>
     """,
     unsafe_allow_html=True,
@@ -841,7 +987,7 @@ D = {
 
 
 # ============================================================
-# DATA CLEANING + CALCULATIONS
+# CLEANING + CALCULATIONS
 # ============================================================
 
 numeric_studies_cols = [
@@ -893,12 +1039,10 @@ if C["utilization_pct"]:
     if util.max() <= 1.5 and util.max() > 0:
         util = util * 100
     df["% ניצול תקציב - מחושב"] = util
-
 elif C["budget"] and C["utilization_total"]:
     budget = to_numeric(df[C["budget"]])
     used = to_numeric(df[C["utilization_total"]])
     df["% ניצול תקציב - מחושב"] = np.where(budget > 0, used / budget * 100, 0)
-
 else:
     df["% ניצול תקציב - מחושב"] = 0
 
@@ -931,7 +1075,7 @@ df["רמזור ניהולי"] = df.apply(
 
 
 # ============================================================
-# DISPLAY COLUMN SETS
+# DISPLAY COLUMNS
 # ============================================================
 
 study_summary_cols = [
@@ -1029,7 +1173,7 @@ payment_cols = [
     D["balance"],
 ]
 
-money_table_cols = [
+money_cols = [
     C["expected_income"],
     C["actual_income"],
     C["total_expenses"],
@@ -1045,21 +1189,27 @@ money_table_cols = [
     D["balance"],
 ]
 
-percent_table_cols = [
+percent_cols = [
     "% ניצול תקציב - מחושב",
     "% גיוס משתתפים",
 ]
 
-number_table_cols = [
+number_cols = [
     C["expected_participants"],
     C["actual_participants"],
     "ימים לסיום",
 ]
 
-date_table_cols = [
+date_cols = [
     C["approval_date"],
     C["start_date"],
     C["end_date"],
+]
+
+badge_cols = [
+    "סטטוס ניצול תקציב - מחושב",
+    "סטטוס גיוס",
+    "רמזור ניהולי",
 ]
 
 
@@ -1085,33 +1235,29 @@ tabs = st.tabs(
 # ============================================================
 
 with tabs[0]:
-    st.header("🏥 כלל בית החולים")
+    st.markdown('<div class="section-title">🏥 כלל בית החולים</div>', unsafe_allow_html=True)
 
     hospital = df.copy()
 
+    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
     f1, f2, f3 = st.columns(3)
-
     with f1:
         hospital = filter_multiselect(hospital, "שנה", C["approval_year"], key="hospital_year")
-
     with f2:
         hospital = filter_multiselect(hospital, "סוג מימון", C["funding_type"], key="hospital_funding")
-
     with f3:
         hospital = filter_multiselect(hospital, "סוג מחקר", C["study_type"], key="hospital_type")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    show_kpis(
+    kpi_grid(
         [
             ("סה״כ מחקרים", number(count_unique_studies(hospital, C["unique_study"], C["study_id"]))),
             ("מספר חוקרים", number(hospital[C["pi"]].nunique() if C["pi"] else 0)),
             ("צפי הכנסות", money(sum_col(hospital, C["expected_income"]))),
             ("הכנסות בפועל", money(sum_col(hospital, C["actual_income"]))),
             ("סך הוצאות", money(sum_col(hospital, C["total_expenses"]))),
-        ],
-        columns_per_row=5,
+        ]
     )
-
-    st.markdown("")
 
     if C["approval_year"]:
         yearly_count = (
@@ -1126,41 +1272,45 @@ with tabs[0]:
 
         yearly_count["שנה"] = yearly_count["שנה"].astype(str)
 
-        plot_bar(
+        chart_card_start()
+        plot_vertical_bar(
             yearly_count,
             "שנה",
             "מספר מחקרים",
             "סה״כ מחקרים לפי שנה",
             x_title="שנה",
             y_title="מספר מחקרים",
-            height=390,
+            height=380,
         )
+        chart_card_end()
 
-        money_cols_year = [
+        money_year_cols = [
             C["expected_income"],
             C["actual_income"],
             C["total_expenses"],
             C["overhead"],
         ]
-        money_cols_year = [c for c in money_cols_year if c]
+        money_year_cols = [col for col in money_year_cols if col]
 
-        if money_cols_year:
+        if money_year_cols:
             yearly_money = (
-                hospital.groupby(C["approval_year"], as_index=False)[money_cols_year]
+                hospital.groupby(C["approval_year"], as_index=False)[money_year_cols]
                 .sum()
                 .rename(columns={C["approval_year"]: "שנה"})
             )
             yearly_money["שנה"] = yearly_money["שנה"].astype(str)
 
+            chart_card_start()
             plot_grouped_bar(
                 yearly_money,
                 "שנה",
-                money_cols_year,
+                money_year_cols,
                 "צפי הכנסות, הכנסות בפועל, הוצאות ותקורה לפי שנה",
                 x_title="שנה",
                 y_title="סכום",
                 height=430,
             )
+            chart_card_end()
 
     c1, c2 = st.columns(2)
 
@@ -1171,14 +1321,9 @@ with tabs[0]:
                 .sum()
                 .rename(columns={C["funding_type"]: "סוג מימון", C["unique_study"]: "מספר מחקרים"})
             )
-
-            plot_donut(
-                funding,
-                "סוג מימון",
-                "מספר מחקרים",
-                "התפלגות מחקרים לפי סוג מימון",
-                height=390,
-            )
+            chart_card_start()
+            plot_donut(funding, "סוג מימון", "מספר מחקרים", "התפלגות מחקרים לפי סוג מימון", height=390)
+            chart_card_end()
 
     with c2:
         if C["pi"] and C["unique_study"]:
@@ -1195,19 +1340,15 @@ with tabs[0]:
                 include_lowest=True,
             )
 
-            dist = (
+            distribution = (
                 researcher_counts.groupby("טווח מחקרים לחוקר", as_index=False, observed=False)
                 .size()
                 .rename(columns={"size": "מספר חוקרים"})
             )
 
-            plot_donut(
-                dist,
-                "טווח מחקרים לחוקר",
-                "מספר חוקרים",
-                "התפלגות כמות מחקרים לחוקר",
-                height=390,
-            )
+            chart_card_start()
+            plot_donut(distribution, "טווח מחקרים לחוקר", "מספר חוקרים", "התפלגות כמות מחקרים לחוקר", height=390)
+            chart_card_end()
 
     c3, c4 = st.columns(2)
 
@@ -1221,13 +1362,9 @@ with tabs[0]:
                 .rename(columns={C["pi"]: "חוקר ראשי", C["unique_study"]: "מספר מחקרים"})
             )
 
-            plot_horizontal_top10(
-                top_pi_count,
-                "חוקר ראשי",
-                "מספר מחקרים",
-                "Top 10 חוקרים לפי כמות מחקרים",
-                x_title="מספר מחקרים",
-            )
+            chart_card_start()
+            plot_top10(top_pi_count, "חוקר ראשי", "מספר מחקרים", "Top 10 חוקרים לפי כמות מחקרים", "מספר מחקרים")
+            chart_card_end()
 
     with c4:
         if C["pi"] and C["expected_income"]:
@@ -1239,13 +1376,9 @@ with tabs[0]:
                 .rename(columns={C["pi"]: "חוקר ראשי", C["expected_income"]: "צפי הכנסות"})
             )
 
-            plot_horizontal_top10(
-                top_pi_income,
-                "חוקר ראשי",
-                "צפי הכנסות",
-                "Top 10 חוקרים לפי צפי הכנסות",
-                x_title="צפי הכנסות",
-            )
+            chart_card_start()
+            plot_top10(top_pi_income, "חוקר ראשי", "צפי הכנסות", "Top 10 חוקרים לפי צפי הכנסות", "צפי הכנסות")
+            chart_card_end()
 
 
 # ============================================================
@@ -1253,36 +1386,31 @@ with tabs[0]:
 # ============================================================
 
 with tabs[1]:
-    st.header("🏢 מחלקות")
+    st.markdown('<div class="section-title">🏢 מחלקות</div>', unsafe_allow_html=True)
 
     dept = df.copy()
 
+    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
     f1, f2 = st.columns(2)
-
     with f1:
         dept, selected_dept = filter_select(dept, "מחלקה", C["department"], key="dept_select")
-
     with f2:
         dept = filter_multiselect(dept, "שנה", C["approval_year"], key="dept_year")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    show_kpis(
+    kpi_grid(
         [
             ("מחלקה", selected_dept or "-"),
             ("מספר מחקרים", number(count_unique_studies(dept, C["unique_study"], C["study_id"]))),
             ("צפי הכנסות", money(sum_col(dept, C["expected_income"]))),
             ("הכנסות בפועל", money(sum_col(dept, C["actual_income"]))),
             ("סך הוצאות", money(sum_col(dept, C["total_expenses"]))),
-        ],
-        columns_per_row=5,
+        ]
     )
 
     if C["approval_year"]:
-        dept_money_cols = [
-            C["expected_income"],
-            C["actual_income"],
-            C["total_expenses"],
-        ]
-        dept_money_cols = [c for c in dept_money_cols if c]
+        dept_money_cols = [C["expected_income"], C["actual_income"], C["total_expenses"]]
+        dept_money_cols = [col for col in dept_money_cols if col]
 
         if dept_money_cols:
             dept_year = (
@@ -1292,45 +1420,40 @@ with tabs[1]:
             )
             dept_year["שנה"] = dept_year["שנה"].astype(str)
 
-            plot_grouped_bar(
-                dept_year,
-                "שנה",
-                dept_money_cols,
-                "הכנסות והוצאות לפי שנה במחלקה",
-                x_title="שנה",
-                y_title="סכום",
-                height=420,
-            )
+            chart_card_start()
+            plot_grouped_bar(dept_year, "שנה", dept_money_cols, "הכנסות והוצאות לפי שנה במחלקה", "שנה", "סכום")
+            chart_card_end()
 
         if C["expected_participants"] and C["actual_participants"]:
             participants = (
-                dept.groupby(C["approval_year"], as_index=False)[
-                    [C["expected_participants"], C["actual_participants"]]
-                ]
+                dept.groupby(C["approval_year"], as_index=False)[[C["expected_participants"], C["actual_participants"]]]
                 .sum()
                 .rename(columns={C["approval_year"]: "שנה"})
             )
             participants["שנה"] = participants["שנה"].astype(str)
 
+            chart_card_start()
             plot_grouped_bar(
                 participants,
                 "שנה",
                 [C["expected_participants"], C["actual_participants"]],
                 "צפי משתתפים מול משתתפים בפועל",
-                x_title="שנה",
-                y_title="מספר משתתפים",
+                "שנה",
+                "מספר משתתפים",
                 height=390,
             )
+            chart_card_end()
 
-    display_table(
+    render_table(
         dept,
-        columns=study_summary_cols,
         title="טבלת מחקרים במחלקה",
+        columns=study_summary_cols,
+        money_cols=money_cols,
+        percent_cols=percent_cols,
+        number_cols=number_cols,
+        date_cols=date_cols,
+        badge_cols=badge_cols,
         height=430,
-        money_cols=money_table_cols,
-        percent_cols=percent_table_cols,
-        number_cols=number_table_cols,
-        date_cols=date_table_cols,
     )
 
 
@@ -1339,36 +1462,31 @@ with tabs[1]:
 # ============================================================
 
 with tabs[2]:
-    st.header("👩‍⚕️ חוקרים")
+    st.markdown('<div class="section-title">👩‍⚕️ חוקרים</div>', unsafe_allow_html=True)
 
     pi_df = df.copy()
 
+    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
     f1, f2 = st.columns(2)
-
     with f1:
         pi_df, selected_pi = filter_select(pi_df, "חוקר ראשי", C["pi"], key="pi_select")
-
     with f2:
         pi_df = filter_multiselect(pi_df, "שנה", C["approval_year"], key="pi_year")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    show_kpis(
+    kpi_grid(
         [
             ("חוקר", selected_pi or "-"),
             ("מספר מחקרים", number(count_unique_studies(pi_df, C["unique_study"], C["study_id"]))),
             ("צפי הכנסות", money(sum_col(pi_df, C["expected_income"]))),
             ("הכנסות בפועל", money(sum_col(pi_df, C["actual_income"]))),
             ("סך הוצאות", money(sum_col(pi_df, C["total_expenses"]))),
-        ],
-        columns_per_row=5,
+        ]
     )
 
     if C["approval_year"]:
-        pi_money_cols = [
-            C["expected_income"],
-            C["actual_income"],
-            C["total_expenses"],
-        ]
-        pi_money_cols = [c for c in pi_money_cols if c]
+        pi_money_cols = [C["expected_income"], C["actual_income"], C["total_expenses"]]
+        pi_money_cols = [col for col in pi_money_cols if col]
 
         if pi_money_cols:
             pi_year = (
@@ -1378,72 +1496,40 @@ with tabs[2]:
             )
             pi_year["שנה"] = pi_year["שנה"].astype(str)
 
-            plot_grouped_bar(
-                pi_year,
-                "שנה",
-                pi_money_cols,
-                "הכנסות מול הוצאות לפי שנה לחוקר",
-                x_title="שנה",
-                y_title="סכום",
-                height=420,
-            )
-
-        expense_cols = [
-            C["salary_expenses"],
-            C["materials_expenses"],
-            C["fixed_expenses"],
-            C["travel_expenses"],
-            C["internal_expenses"],
-        ]
-        expense_cols = [c for c in expense_cols if c]
-
-        if expense_cols:
-            pi_exp = (
-                pi_df.groupby(C["approval_year"], as_index=False)[expense_cols]
-                .sum()
-                .rename(columns={C["approval_year"]: "שנה"})
-            )
-            pi_exp["שנה"] = pi_exp["שנה"].astype(str)
-
-            plot_grouped_bar(
-                pi_exp,
-                "שנה",
-                expense_cols,
-                "התפלגות הוצאות לפי שנה לחוקר",
-                x_title="שנה",
-                y_title="סכום",
-                height=420,
-            )
+            chart_card_start()
+            plot_grouped_bar(pi_year, "שנה", pi_money_cols, "הכנסות מול הוצאות לפי שנה לחוקר", "שנה", "סכום")
+            chart_card_end()
 
         if C["expected_participants"] and C["actual_participants"]:
             pi_participants = (
-                pi_df.groupby(C["approval_year"], as_index=False)[
-                    [C["expected_participants"], C["actual_participants"]]
-                ]
+                pi_df.groupby(C["approval_year"], as_index=False)[[C["expected_participants"], C["actual_participants"]]]
                 .sum()
                 .rename(columns={C["approval_year"]: "שנה"})
             )
             pi_participants["שנה"] = pi_participants["שנה"].astype(str)
 
+            chart_card_start()
             plot_grouped_bar(
                 pi_participants,
                 "שנה",
                 [C["expected_participants"], C["actual_participants"]],
                 "צפי משתתפים מול משתתפים בפועל לחוקר",
-                x_title="שנה",
-                y_title="מספר משתתפים",
+                "שנה",
+                "מספר משתתפים",
                 height=390,
             )
+            chart_card_end()
 
-    display_table(
+    render_table(
         pi_df,
-        columns=study_summary_cols,
         title="טבלת מחקרים לחוקר",
+        columns=study_summary_cols,
+        money_cols=money_cols,
+        percent_cols=percent_cols,
+        number_cols=number_cols,
+        date_cols=date_cols,
+        badge_cols=badge_cols,
         height=430,
-        money_cols=money_table_cols,
-        percent_cols=percent_table_cols,
-        number_cols=number_table_cols,
-        date_cols=date_table_cols,
     )
 
 
@@ -1452,145 +1538,118 @@ with tabs[2]:
 # ============================================================
 
 with tabs[3]:
-    st.header("🏭 יזמים")
+    st.markdown('<div class="section-title">🏭 יזמים</div>', unsafe_allow_html=True)
 
     sponsor_df = df.copy()
 
+    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
     f1, f2 = st.columns(2)
-
     with f1:
         sponsor_df = filter_multiselect(sponsor_df, "יזם", C["sponsor"], key="sponsor_select")
-
     with f2:
         sponsor_df = filter_multiselect(sponsor_df, "שנה", C["approval_year"], key="sponsor_year")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     if C["sponsor"]:
-        sponsor_summary = sponsor_df.groupby(C["sponsor"], as_index=False).agg(
-            מספר_רשומות=(C["sponsor"], "size")
-        )
+        sponsor_summary = sponsor_df.groupby(C["sponsor"], as_index=False).agg(מספר_רשומות=(C["sponsor"], "size"))
 
         if C["unique_study"]:
-            study_count = (
+            sponsor_count = (
                 sponsor_df.groupby(C["sponsor"], as_index=False)[C["unique_study"]]
                 .sum()
                 .rename(columns={C["unique_study"]: "מספר מחקרים"})
             )
-            sponsor_summary = sponsor_summary.merge(study_count, on=C["sponsor"], how="left")
+            sponsor_summary = sponsor_summary.merge(sponsor_count, on=C["sponsor"], how="left")
         else:
             sponsor_summary["מספר מחקרים"] = sponsor_summary["מספר_רשומות"]
 
         if C["expected_income"]:
-            income_summary = (
+            sponsor_income = (
                 sponsor_df.groupby(C["sponsor"], as_index=False)[C["expected_income"]]
                 .sum()
                 .rename(columns={C["expected_income"]: "צפי הכנסות"})
             )
-            sponsor_summary = sponsor_summary.merge(income_summary, on=C["sponsor"], how="left")
+            sponsor_summary = sponsor_summary.merge(sponsor_income, on=C["sponsor"], how="left")
 
         if C["actual_income"]:
-            actual_summary = (
+            sponsor_actual = (
                 sponsor_df.groupby(C["sponsor"], as_index=False)[C["actual_income"]]
                 .sum()
                 .rename(columns={C["actual_income"]: "הכנסות בפועל"})
             )
-            sponsor_summary = sponsor_summary.merge(actual_summary, on=C["sponsor"], how="left")
+            sponsor_summary = sponsor_summary.merge(sponsor_actual, on=C["sponsor"], how="left")
 
         if C["total_expenses"]:
-            expense_summary = (
+            sponsor_exp = (
                 sponsor_df.groupby(C["sponsor"], as_index=False)[C["total_expenses"]]
                 .sum()
                 .rename(columns={C["total_expenses"]: "סך הוצאות"})
             )
-            sponsor_summary = sponsor_summary.merge(expense_summary, on=C["sponsor"], how="left")
+            sponsor_summary = sponsor_summary.merge(sponsor_exp, on=C["sponsor"], how="left")
 
         if C["pi"]:
-            pi_summary = (
+            sponsor_pi = (
                 sponsor_df.groupby(C["sponsor"], as_index=False)[C["pi"]]
                 .nunique()
                 .rename(columns={C["pi"]: "מספר חוקרים"})
             )
-            sponsor_summary = sponsor_summary.merge(pi_summary, on=C["sponsor"], how="left")
+            sponsor_summary = sponsor_summary.merge(sponsor_pi, on=C["sponsor"], how="left")
 
         if C["department"]:
-            dept_summary = (
+            sponsor_dept = (
                 sponsor_df.groupby(C["sponsor"], as_index=False)[C["department"]]
                 .nunique()
                 .rename(columns={C["department"]: "מספר מחלקות"})
             )
-            sponsor_summary = sponsor_summary.merge(dept_summary, on=C["sponsor"], how="left")
+            sponsor_summary = sponsor_summary.merge(sponsor_dept, on=C["sponsor"], how="left")
 
         sponsor_summary = sponsor_summary.rename(columns={C["sponsor"]: "יזם"})
+        sponsor_summary = sponsor_summary.sort_values("מספר מחקרים", ascending=False)
 
         c1, c2 = st.columns(2)
 
         with c1:
-            if "מספר מחקרים" in sponsor_summary.columns:
-                count_data = sponsor_summary[["יזם", "מספר מחקרים"]].sort_values("מספר מחקרים", ascending=False)
-                top_count = count_data.head(10)
-                other_count = count_data.iloc[10:]["מספר מחקרים"].sum()
+            count_top = sponsor_summary[["יזם", "מספר מחקרים"]].copy()
+            top_count = count_top.head(10)
+            other_count = count_top.iloc[10:]["מספר מחקרים"].sum()
+            if other_count > 0:
+                top_count = pd.concat([top_count, pd.DataFrame({"יזם": ["אחר"], "מספר מחקרים": [other_count]})], ignore_index=True)
 
-                if other_count > 0:
-                    top_count = pd.concat(
-                        [top_count, pd.DataFrame({"יזם": ["אחר"], "מספר מחקרים": [other_count]})],
-                        ignore_index=True,
-                    )
-
-                plot_donut(
-                    top_count,
-                    "יזם",
-                    "מספר מחקרים",
-                    "התפלגות כמות מחקרים לפי יזם - Top 10 ואחר",
-                    height=410,
-                )
+            chart_card_start()
+            plot_donut(top_count, "יזם", "מספר מחקרים", "התפלגות כמות מחקרים לפי יזם - Top 10 ואחר")
+            chart_card_end()
 
         with c2:
             if "צפי הכנסות" in sponsor_summary.columns:
-                income_data = sponsor_summary[["יזם", "צפי הכנסות"]].sort_values("צפי הכנסות", ascending=False)
-                top_income = income_data.head(10)
-                other_income = income_data.iloc[10:]["צפי הכנסות"].sum()
-
+                income_top = sponsor_summary[["יזם", "צפי הכנסות"]].sort_values("צפי הכנסות", ascending=False)
+                top_income = income_top.head(10)
+                other_income = income_top.iloc[10:]["צפי הכנסות"].sum()
                 if other_income > 0:
-                    top_income = pd.concat(
-                        [top_income, pd.DataFrame({"יזם": ["אחר"], "צפי הכנסות": [other_income]})],
-                        ignore_index=True,
-                    )
+                    top_income = pd.concat([top_income, pd.DataFrame({"יזם": ["אחר"], "צפי הכנסות": [other_income]})], ignore_index=True)
 
-                plot_donut(
-                    top_income,
-                    "יזם",
-                    "צפי הכנסות",
-                    "התפלגות צפי הכנסות לפי יזם - Top 10 ואחר",
-                    height=410,
-                )
+                chart_card_start()
+                plot_donut(top_income, "יזם", "צפי הכנסות", "התפלגות צפי הכנסות לפי יזם - Top 10 ואחר")
+                chart_card_end()
 
         c3, c4 = st.columns(2)
 
         with c3:
-            if "מספר מחקרים" in sponsor_summary.columns:
-                plot_horizontal_top10(
-                    sponsor_summary.sort_values("מספר מחקרים", ascending=False).head(10),
-                    "יזם",
-                    "מספר מחקרים",
-                    "Top 10 יזמים לפי כמות מחקרים",
-                    x_title="מספר מחקרים",
-                )
+            chart_card_start()
+            plot_top10(sponsor_summary, "יזם", "מספר מחקרים", "Top 10 יזמים לפי כמות מחקרים", "מספר מחקרים")
+            chart_card_end()
 
         with c4:
             if "צפי הכנסות" in sponsor_summary.columns:
-                plot_horizontal_top10(
-                    sponsor_summary.sort_values("צפי הכנסות", ascending=False).head(10),
-                    "יזם",
-                    "צפי הכנסות",
-                    "Top 10 יזמים לפי צפי הכנסות",
-                    x_title="צפי הכנסות",
-                )
+                chart_card_start()
+                plot_top10(sponsor_summary, "יזם", "צפי הכנסות", "Top 10 יזמים לפי צפי הכנסות", "צפי הכנסות")
+                chart_card_end()
 
-        display_table(
-            sponsor_summary.sort_values("מספר מחקרים", ascending=False) if "מספר מחקרים" in sponsor_summary.columns else sponsor_summary,
+        render_table(
+            sponsor_summary,
             title="טבלת סיכום יזמים",
-            height=430,
             money_cols=["צפי הכנסות", "הכנסות בפועל", "סך הוצאות"],
             number_cols=["מספר מחקרים", "מספר חוקרים", "מספר מחלקות"],
+            height=430,
         )
 
 
@@ -1599,31 +1658,27 @@ with tabs[3]:
 # ============================================================
 
 with tabs[4]:
-    st.header("🚦 סטטוס ניהול תקציב")
+    st.markdown('<div class="section-title">🚦 סטטוס ניהול תקציב</div>', unsafe_allow_html=True)
 
     status_df = df.copy()
 
+    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
     f1, f2, f3 = st.columns(3)
-
     with f1:
         status_df = filter_multiselect(status_df, "שנה", C["approval_year"], key="status_year")
-
     with f2:
         status_df = filter_multiselect(status_df, "מחלקה", C["department"], key="status_dept")
-
     with f3:
         status_df = filter_multiselect(status_df, "חוקר ראשי", C["pi"], key="status_pi")
 
     f4, f5, f6 = st.columns(3)
-
     with f4:
         status_df = filter_multiselect(status_df, "סטטוס ניצול", "סטטוס ניצול תקציב - מחושב", key="status_util")
-
     with f5:
         status_df = filter_multiselect(status_df, "רמזור", "רמזור ניהולי", key="status_light")
-
     with f6:
         status_df = filter_multiselect(status_df, "סטטוס גיוס", "סטטוס גיוס", key="status_recruit")
+    st.markdown("</div>", unsafe_allow_html=True)
 
     over_budget = status_df[status_df["סטטוס ניצול תקציב - מחושב"] == "חריגה"]
     high_util = status_df[status_df["סטטוס ניצול תקציב - מחושב"] == "קרוב לניצול מלא"]
@@ -1631,15 +1686,14 @@ with tabs[4]:
     low_recruit = status_df[status_df["סטטוס גיוס"].isin(["אין גיוס", "גיוס נמוך"])]
     ending_soon = status_df[(status_df["ימים לסיום"] >= 0) & (status_df["ימים לסיום"] <= 60)]
 
-    show_kpis(
+    kpi_grid(
         [
             ("🔴 מחקרים בחריגה", number(len(over_budget))),
             ("🟡 קרוב לניצול מלא", number(len(high_util))),
             ("🟡 ניצול נמוך", number(len(low_util))),
             ("🟡 גיוס נמוך / אין גיוס", number(len(low_recruit))),
             ("🟡 מסתיימים תוך 60 יום", number(len(ending_soon))),
-        ],
-        columns_per_row=5,
+        ]
     )
 
     c1, c2 = st.columns(2)
@@ -1650,14 +1704,9 @@ with tabs[4]:
             .size()
             .rename(columns={"size": "מספר מחקרים"})
         )
-
-        plot_donut(
-            status_summary,
-            "סטטוס ניצול תקציב - מחושב",
-            "מספר מחקרים",
-            "התפלגות סטטוס ניצול תקציבי",
-            height=390,
-        )
+        chart_card_start()
+        plot_donut(status_summary, "סטטוס ניצול תקציב - מחושב", "מספר מחקרים", "התפלגות סטטוס ניצול תקציבי")
+        chart_card_end()
 
     with c2:
         recruit_summary = (
@@ -1665,14 +1714,9 @@ with tabs[4]:
             .size()
             .rename(columns={"size": "מספר מחקרים"})
         )
-
-        plot_donut(
-            recruit_summary,
-            "סטטוס גיוס",
-            "מספר מחקרים",
-            "התפלגות סטטוס גיוס משתתפים",
-            height=390,
-        )
+        chart_card_start()
+        plot_donut(recruit_summary, "סטטוס גיוס", "מספר מחקרים", "התפלגות סטטוס גיוס משתתפים")
+        chart_card_end()
 
     alert_tabs = st.tabs(
         [
@@ -1686,76 +1730,17 @@ with tabs[4]:
     )
 
     with alert_tabs[0]:
-        display_table(
-            over_budget,
-            columns=budget_status_cols,
-            title="מחקרים בחריגה תקציבית",
-            height=390,
-            money_cols=money_table_cols,
-            percent_cols=percent_table_cols,
-            number_cols=number_table_cols,
-            date_cols=date_table_cols,
-        )
-
+        render_table(over_budget, "מחקרים בחריגה תקציבית", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
     with alert_tabs[1]:
-        display_table(
-            high_util,
-            columns=budget_status_cols,
-            title="מחקרים קרובים לניצול מלא",
-            height=390,
-            money_cols=money_table_cols,
-            percent_cols=percent_table_cols,
-            number_cols=number_table_cols,
-            date_cols=date_table_cols,
-        )
-
+        render_table(high_util, "מחקרים קרובים לניצול מלא", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
     with alert_tabs[2]:
-        display_table(
-            low_util,
-            columns=budget_status_cols,
-            title="מחקרים בניצול נמוך",
-            height=390,
-            money_cols=money_table_cols,
-            percent_cols=percent_table_cols,
-            number_cols=number_table_cols,
-            date_cols=date_table_cols,
-        )
-
+        render_table(low_util, "מחקרים בניצול נמוך", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
     with alert_tabs[3]:
-        display_table(
-            low_recruit,
-            columns=budget_status_cols,
-            title="מחקרים עם גיוס משתתפים נמוך / ללא גיוס",
-            height=390,
-            money_cols=money_table_cols,
-            percent_cols=percent_table_cols,
-            number_cols=number_table_cols,
-            date_cols=date_table_cols,
-        )
-
+        render_table(low_recruit, "מחקרים עם גיוס נמוך / ללא גיוס", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
     with alert_tabs[4]:
-        display_table(
-            ending_soon,
-            columns=budget_status_cols,
-            title="מחקרים שמסתיימים תוך 60 יום",
-            height=390,
-            money_cols=money_table_cols,
-            percent_cols=percent_table_cols,
-            number_cols=number_table_cols,
-            date_cols=date_table_cols,
-        )
-
+        render_table(ending_soon, "מחקרים שמסתיימים תוך 60 יום", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
     with alert_tabs[5]:
-        display_table(
-            status_df,
-            columns=budget_status_cols,
-            title="טבלת סטטוס ניהול תקציב",
-            height=430,
-            money_cols=money_table_cols,
-            percent_cols=percent_table_cols,
-            number_cols=number_table_cols,
-            date_cols=date_table_cols,
-        )
+        render_table(status_df, "טבלת סטטוס ניהול תקציב", budget_status_cols, money_cols=money_cols, percent_cols=percent_cols, number_cols=number_cols, date_cols=date_cols, badge_cols=badge_cols)
 
 
 # ============================================================
@@ -1763,73 +1748,82 @@ with tabs[4]:
 # ============================================================
 
 with tabs[5]:
-    st.header("🧾 גיליון לחוקר")
+    st.markdown('<div class="section-title">🧾 גיליון לחוקר</div>', unsafe_allow_html=True)
 
     r_df = df.copy()
 
+    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
     f1, f2 = st.columns(2)
-
     with f1:
         r_df, selected_researcher = filter_select(r_df, "חוקר", C["pi"], key="researcher_sheet_select")
-
     with f2:
         r_df = filter_multiselect(r_df, "שנה", C["approval_year"], key="researcher_sheet_year")
+    st.markdown("</div>", unsafe_allow_html=True)
 
-    show_kpis(
+    kpi_grid(
         [
             ("חוקר", selected_researcher or "-"),
             ("מספר מחקרים", number(count_unique_studies(r_df, C["unique_study"], C["study_id"]))),
             ("תקציב כולל", money(sum_col(r_df, C["budget"]))),
             ("סה״כ ניצול", money(sum_col(r_df, C["utilization_total"]))),
             ("יתרה לניצול", money(sum_col(r_df, C["balance"]))),
-        ],
-        columns_per_row=5,
+        ]
     )
 
-    display_table(
+    render_table(
         r_df,
-        columns=researcher_short_cols,
         title="רשימת מחקרים מקוצרת לחוקר",
+        columns=researcher_short_cols,
+        money_cols=money_cols,
+        percent_cols=percent_cols,
+        number_cols=number_cols,
+        date_cols=date_cols,
+        badge_cols=badge_cols,
         height=320,
-        money_cols=money_table_cols,
-        percent_cols=percent_table_cols,
-        number_cols=number_table_cols,
-        date_cols=date_table_cols,
     )
 
     if C["study_id"] and not r_df.empty:
-        st.subheader("תעודת זהות למחקר")
+        st.markdown('<div class="section-title">תעודת זהות למחקר</div>', unsafe_allow_html=True)
 
-        selected_study_df, selected_study = filter_select(
-            r_df,
-            "בחרי מחקר לפתיחת תעודת זהות",
-            C["study_id"],
-            key="researcher_identity_study",
-        )
+        study_options = sorted(r_df[C["study_id"]].dropna().astype(str).unique())
+        selected_study = st.selectbox("בחרי מחקר לפתיחת תעודת זהות", study_options, key="identity_study_select")
+
+        selected_study_df = r_df[r_df[C["study_id"]].astype(str) == selected_study]
 
         if not selected_study_df.empty:
             row = selected_study_df.iloc[0]
 
-            show_kpis(
+            identity_grid(
                 [
-                    ("מספר הלסינקי", str(row.get(C["study_id"], ""))),
-                    ("מספר פרוטוקול", str(row.get(C["protocol"], "")) if C["protocol"] else "-"),
-                    ("יזם", str(row.get(C["sponsor"], "")) if C["sponsor"] else "-"),
-                    ("רמזור", str(row.get("רמזור ניהולי", ""))),
+                    ("מספר הלסינקי", row.get(C["study_id"], "")),
+                    ("מספר פרוטוקול", row.get(C["protocol"], "") if C["protocol"] else ""),
+                    ("חוקר ראשי", row.get(C["pi"], "") if C["pi"] else ""),
+                    ("מחלקה", row.get(C["department"], "") if C["department"] else ""),
+                    ("יזם", row.get(C["sponsor"], "") if C["sponsor"] else ""),
+                    ("אלמנט WBS", row.get(C["wbs"], "") if C["wbs"] else ""),
+                    ("שם תקציב", row.get(C["budget_name"], "") if C["budget_name"] else ""),
+                    ("רמזור ניהולי", row.get("רמזור ניהולי", "")),
+                    ("תקציב", money(row.get(C["budget"], 0)) if C["budget"] else "0 ₪"),
+                    ("סה״כ ניצול", money(row.get(C["utilization_total"], 0)) if C["utilization_total"] else "0 ₪"),
+                    ("יתרה לניצול", money(row.get(C["balance"], 0)) if C["balance"] else "0 ₪"),
                     ("% ניצול", pct(row.get("% ניצול תקציב - מחושב", 0))),
-                ],
-                columns_per_row=5,
+                    ("צפי משתתפים", number(row.get(C["expected_participants"], 0)) if C["expected_participants"] else "0"),
+                    ("משתתפים בפועל", number(row.get(C["actual_participants"], 0)) if C["actual_participants"] else "0"),
+                    ("% גיוס", pct(row.get("% גיוס משתתפים", 0))),
+                    ("סטטוס גיוס", row.get("סטטוס גיוס", "")),
+                ]
             )
 
-            display_table(
+            render_table(
                 selected_study_df,
+                title="פרטים מלאים למחקר שנבחר",
                 columns=researcher_identity_cols,
-                title="פרטי המחקר שנבחר",
-                height=360,
-                money_cols=money_table_cols,
-                percent_cols=percent_table_cols,
-                number_cols=number_table_cols,
-                date_cols=date_table_cols,
+                money_cols=money_cols,
+                percent_cols=percent_cols,
+                number_cols=number_cols,
+                date_cols=date_cols,
+                badge_cols=badge_cols,
+                height=330,
             )
 
     researcher_excel = download_excel_openpyxl(
@@ -1852,16 +1846,18 @@ with tabs[5]:
 # ============================================================
 
 with tabs[6]:
-    st.header("💳 גיליון לחוקר - מעקב דרישות תשלום")
+    st.markdown('<div class="section-title">💳 גיליון לחוקר - מעקב דרישות תשלום</div>', unsafe_allow_html=True)
 
     payment_source = df.copy()
 
+    st.markdown('<div class="filter-box">', unsafe_allow_html=True)
     payment_source, payment_researcher = filter_select(
         payment_source,
         "חוקר",
         C["pi"],
         key="payment_researcher_select",
     )
+    st.markdown("</div>", unsafe_allow_html=True)
 
     study_ids = (
         payment_source[C["study_id"]].dropna().astype(str).unique().tolist()
@@ -1894,32 +1890,21 @@ with tabs[6]:
         payment_details = payment_details[combined]
 
     if D["study_id"] and not payment_details.empty:
-        payment_details = filter_multiselect(
-            payment_details,
-            "מחקר",
-            D["study_id"],
-            key="payment_study_filter",
-        )
+        payment_details = filter_multiselect(payment_details, "מחקר", D["study_id"], key="payment_study_filter")
 
-    show_kpis(
+    kpi_grid(
         [
             ("חוקר", payment_researcher or "-"),
             ("סה״כ תקציב", money(sum_col(payment_details, D["budget_total"]))),
             ("התחייבויות רכש", money(sum_col(payment_details, D["purchase_commitments"]))),
             ("סה״כ ביצוע", money(sum_col(payment_details, D["execution_total"]))),
             ("יתרה לניצול", money(sum_col(payment_details, D["balance"]))),
-        ],
-        columns_per_row=5,
+        ]
     )
 
     if D["budget_category"]:
-        summary_cols = [
-            D["budget_total"],
-            D["purchase_commitments"],
-            D["execution_total"],
-            D["balance"],
-        ]
-        summary_cols = [c for c in summary_cols if c]
+        summary_cols = [D["budget_total"], D["purchase_commitments"], D["execution_total"], D["balance"]]
+        summary_cols = [col for col in summary_cols if col]
 
         if summary_cols:
             category_summary = (
@@ -1931,32 +1916,29 @@ with tabs[6]:
             c1, c2 = st.columns([1, 1])
 
             with c1:
-                display_table(
+                render_table(
                     category_summary,
                     title="סיכום לפי קטגוריית סעיף תקציבי",
-                    height=320,
                     money_cols=summary_cols,
+                    height=310,
                 )
 
             with c2:
+                chart_card_start()
                 plot_grouped_bar(
                     category_summary,
                     "קטגוריית סעיף תקציבי",
                     summary_cols,
                     "תקציב, התחייבויות, ביצוע ויתרה לפי קטגוריה",
-                    x_title="קטגוריה",
-                    y_title="סכום",
+                    "קטגוריה",
+                    "סכום",
                     height=360,
                 )
+                chart_card_end()
 
-    if D["wbs"] and D["budget_total"]:
-        wbs_summary_cols = [
-            D["budget_total"],
-            D["purchase_commitments"],
-            D["execution_total"],
-            D["balance"],
-        ]
-        wbs_summary_cols = [c for c in wbs_summary_cols if c]
+    if D["wbs"]:
+        wbs_summary_cols = [D["budget_total"], D["purchase_commitments"], D["execution_total"], D["balance"]]
+        wbs_summary_cols = [col for col in wbs_summary_cols if col]
 
         if wbs_summary_cols:
             wbs_summary = (
@@ -1965,22 +1947,23 @@ with tabs[6]:
                 .rename(columns={D["wbs"]: "אלמנט WBS"})
             )
 
-            display_table(
+            render_table(
                 wbs_summary,
                 title="סיכום לפי WBS",
-                height=280,
                 money_cols=wbs_summary_cols,
+                height=300,
             )
 
-    display_table(
+    render_table(
         payment_details,
-        columns=payment_cols,
         title="טבלת מעקב דרישות תשלום",
+        columns=payment_cols,
+        money_cols=money_cols,
+        percent_cols=percent_cols,
+        number_cols=number_cols,
+        date_cols=date_cols,
+        badge_cols=badge_cols,
         height=430,
-        money_cols=money_table_cols,
-        percent_cols=percent_table_cols,
-        number_cols=number_table_cols,
-        date_cols=date_table_cols,
     )
 
     payments_excel = download_excel_openpyxl(
