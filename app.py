@@ -1,4 +1,3 @@
-from google.colab import files
 
 app_code = r'''
 import streamlit as st
