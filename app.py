@@ -622,23 +622,41 @@ def render_table(
     st.markdown(html, unsafe_allow_html=True)
 
 
-def kpi_grid(items):
-    html_items = []
-    color_classes = ["kpi-blue", "kpi-green", "kpi-purple", "kpi-yellow", "kpi-red"]
+def kpi_grid(items, columns_per_row=5):
+    """
+    Professional KPI cards using native Streamlit metrics.
+    This avoids broken raw HTML rendering in Streamlit Cloud.
+    """
 
-    for i, (label, value) in enumerate(items):
-        css_class = color_classes[i % len(color_classes)]
-        html_items.append(
-            f"""
-            <div class="kpi-card {css_class}">
-                <div class="kpi-label">{escape(str(label))}</div>
-                <div class="kpi-value">{escape(str(value))}</div>
-            </div>
-            """
-        )
+    if not items:
+        return
 
-    html = f'<div class="kpi-grid">{"".join(html_items)}</div>'
-    st.markdown(html, unsafe_allow_html=True)
+    color_classes = [
+        "kpi-blue",
+        "kpi-green",
+        "kpi-purple",
+        "kpi-yellow",
+        "kpi-red",
+    ]
+
+    for start in range(0, len(items), columns_per_row):
+        chunk = items[start:start + columns_per_row]
+        cols = st.columns(len(chunk))
+
+        for i, (col, item) in enumerate(zip(cols, chunk)):
+            label, value = item
+            color_class = color_classes[(start + i) % len(color_classes)]
+
+            with col:
+                st.markdown(
+                    f"""
+                    <div class="kpi-card {color_class}">
+                        <div class="kpi-label">{escape(str(label))}</div>
+                        <div class="kpi-value">{escape(str(value))}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
 
 def identity_grid(items):
