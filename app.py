@@ -1111,11 +1111,11 @@ def study_count_by_year_text(data, C):
     total = count_studies(data, C.get("unique_study"), C.get("study_id"))
 
     if not C.get("approval_year") or C["approval_year"] not in data.columns:
-        return f"""
-        <div class="metric-lines">
-            <div class="metric-total">סה״כ: {number(total)}</div>
-        </div>
-        """
+        return (
+            f'<div class="metric-lines">'
+            f'<div class="metric-total">סה״כ: {number(total)}</div>'
+            f'</div>'
+        )
 
     if C.get("unique_study") and C["unique_study"] in data.columns:
         s = data.groupby(C["approval_year"])[C["unique_study"]].sum()
@@ -1129,15 +1129,16 @@ def study_count_by_year_text(data, C):
 
     year_items = []
     for year, val in s.sort_index().items():
-        year_items.append(f'<span class="metric-year">{escape(safe_display(year))}: {number(val)}</span>')
+        year_items.append(
+            f'<span class="metric-year">{escape(safe_display(year))}: {number(val)}</span>'
+        )
 
-    return f"""
-    <div class="metric-lines">
-        <div class="metric-total">סה״כ: {number(total)}</div>
-        <div class="metric-years">{''.join(year_items)}</div>
-    </div>
-    """
-
+    return (
+        f'<div class="metric-lines">'
+        f'<div class="metric-total">סה״כ: {number(total)}</div>'
+        f'<div class="metric-years">{"".join(year_items)}</div>'
+        f'</div>'
+    )
 def study_count_summary_df(data, C):
     if data is None or data.empty or not C.get("approval_year") or C["approval_year"] not in data.columns:
         return pd.DataFrame(columns=["שנה", "קבוצת מימון", "מספר מחקרים", "אחוז"])
