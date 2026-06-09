@@ -873,7 +873,10 @@ def kpis(items, columns_per_row=4):
 
     for start in range(0, len(items), columns_per_row):
         chunk = items[start:start + columns_per_row]
-        cols = st.columns(len(chunk))
+        if len(chunk) == 4:
+    cols = st.columns([1, 1, 1, 1.5])
+else:
+    cols = st.columns(len(chunk))
 
         for c, (label, value) in zip(cols, chunk):
             with c:
