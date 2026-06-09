@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v12-fixed-payments-sheet-clean-insights-rtl-2026-06-09"
+APP_VERSION = "v13-minimal-fixes-keep-design-2026-06-09"
 
 # ============================================================
 # GLOBAL RTL + PROFESSIONAL CSS
@@ -31,11 +31,14 @@ st.markdown(
     --text: #111827;
     --muted: #6b7280;
     --border: #e1e7ef;
+
     --navy: #102033;
     --navy-soft: #172b43;
     --blue: #245c9f;
     --blue-soft: #eaf2fb;
     --teal: #167c80;
+    --teal-dark: #0f5f63;
+
     --green: #15803d;
     --green-bg: #ecfdf3;
     --amber: #b7791f;
@@ -46,7 +49,7 @@ st.markdown(
     --purple-bg: #f3f0ff;
 }
 
-html, body, .stApp {
+html, body, [class*="css"] {
     direction: rtl !important;
     text-align: right !important;
     font-family: Calibri, Arial, sans-serif !important;
@@ -54,7 +57,24 @@ html, body, .stApp {
     color: var(--text) !important;
 }
 
-/* חשוב: לא עושים font-family על כל הכוכבית, כי זה שובר אייקונים של Streamlit */
+* {
+    font-family: Calibri, Arial, sans-serif !important;
+}
+
+/* תיקון חשוב: מחזיר ל-Streamlit את פונט האייקונים כדי שלא יופיע טקסט כמו d_double_arrow_left / keyboard_arrow_down */
+span[class*="material"],
+span[class*="Material"],
+button[data-testid="stBaseButton-headerNoPadding"] span,
+button[data-testid="stBaseButton-header"] span,
+[data-testid="stSidebarCollapseButton"] span,
+[data-baseweb="select"] svg,
+[data-baseweb="select"] span[class*="icon"],
+[data-testid="stIconMaterial"] {
+    font-family: "Material Symbols Rounded", "Material Symbols Outlined", "Material Icons", sans-serif !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    line-height: 1 !important;
+}
 
 .block-container {
     padding-top: 1rem !important;
@@ -62,72 +82,44 @@ html, body, .stApp {
     max-width: 1620px !important;
 }
 
-h1, h2, h3, h4, h5, h6, p, label, span, div {
+h1, h2, h3, h4, h5, h6, p, label, span {
     direction: rtl;
 }
 
-/* תיקון קריטי: הסתרת כפתור הקיפול שמופיע כטקסט d_double_arrow_left */
-button[data-testid="stBaseButton-headerNoPadding"],
-button[data-testid="stBaseButton-header"],
-[data-testid="stSidebarCollapseButton"] {
-    display: none !important;
-}
-
-/* Sidebar */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #102033 0%, #172b43 100%) !important;
-    width: 330px !important;
 }
 
 section[data-testid="stSidebar"] * {
     color: #ffffff !important;
 }
 
-section[data-testid="stSidebar"] div[role="radiogroup"] {
-    direction: rtl !important;
-}
-
 section[data-testid="stSidebar"] div[data-testid="stRadio"] label {
-    background: rgba(255,255,255,.075);
-    border-radius: 14px;
-    padding: 9px 12px;
-    margin-bottom: 7px;
-    min-height: 42px;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: flex-start !important;
-    flex-direction: row-reverse !important;
+    background: rgba(255,255,255,.07);
+    border-radius: 12px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
 }
 
-section[data-testid="stSidebar"] div[data-testid="stRadio"] label:hover {
-    background: rgba(255,255,255,.13);
-}
-
-section[data-testid="stSidebar"] div[data-testid="stRadio"] label p {
-    font-weight: 850 !important;
-    font-size: .96rem !important;
-}
-
-/* כותרת ראשית */
 .hero {
     background: linear-gradient(135deg,#102033 0%,#245c9f 54%,#167c80 100%);
     color: white;
     padding: 34px 38px;
     border-radius: 28px;
-    margin-bottom: 22px;
+    margin-bottom: 24px;
     box-shadow: 0 18px 42px rgba(16,32,51,.22);
     text-align: center !important;
 }
 
 .hero h1 {
     color: white;
-    font-size: 2.15rem;
+    font-size: 2.2rem;
     margin: 0;
     font-weight: 900;
+    letter-spacing: .2px;
     text-align: center !important;
 }
 
-/* Uploader - תיקון טקסטים חופפים */
 div[data-testid="stFileUploader"] {
     background: var(--card) !important;
     border: 1px solid var(--border) !important;
@@ -158,28 +150,35 @@ div[data-testid="stFileUploader"] section {
     border: 1.5px dashed #c7d3e1 !important;
     border-radius: 18px !important;
     background: #f8fafc !important;
-    padding: 30px 18px !important;
-    min-height: 150px !important;
-}
-
-div[data-testid="stFileUploader"] section > div {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 10px !important;
-    align-items: center !important;
-    text-align: center !important;
+    padding: 28px !important;
 }
 
 div[data-testid="stFileUploader"] button {
+    position: relative !important;
     background: var(--teal) !important;
-    color: white !important;
+    color: transparent !important;
+    font-size: 0 !important;
     border-radius: 12px !important;
     border: none !important;
     padding: 10px 24px !important;
-    margin: 10px auto !important;
+    margin: 12px auto !important;
     min-width: 185px !important;
-    min-height: 42px !important;
+    height: 46px !important;
+    overflow: hidden !important;
+}
+
+div[data-testid="stFileUploader"] button::after {
+    content: "יש לבחור קובץ להעלאה";
+    color: white !important;
+    font-size: 1rem !important;
     font-weight: 900 !important;
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    direction: rtl !important;
 }
 
 div[data-testid="stFileUploader"] small,
@@ -187,10 +186,8 @@ div[data-testid="stFileUploader"] span,
 div[data-testid="stFileUploader"] p {
     text-align: center !important;
     direction: rtl !important;
-    color: var(--muted) !important;
 }
 
-/* Cards + metrics */
 div[data-testid="stVerticalBlockBorderWrapper"] {
     background: var(--card) !important;
     border-color: var(--border) !important;
@@ -202,37 +199,25 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 div[data-testid="stMetric"] {
     background: linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);
     border: 1px solid var(--border);
-    padding: 16px 18px;
+    padding: 18px;
     border-radius: 20px;
     box-shadow: 0 8px 22px rgba(16,32,51,.055);
-    min-height: 112px;
-    overflow: hidden !important;
-}
-
-div[data-testid="stMetric"] * {
-    overflow-wrap: anywhere !important;
-    word-break: normal !important;
+    min-height: 108px;
 }
 
 div[data-testid="stMetricLabel"] {
     color: var(--muted);
-    font-weight: 850;
+    font-weight: 800;
     text-align: right !important;
-    white-space: normal !important;
-    line-height: 1.25 !important;
 }
 
 div[data-testid="stMetricValue"] {
     color: var(--text);
-    font-size: 1.28rem !important;
+    font-size: 1.34rem;
     font-weight: 950;
     text-align: right !important;
-    direction: rtl !important;
-    white-space: normal !important;
-    line-height: 1.35 !important;
 }
 
-/* Selects */
 div[data-testid="stSelectbox"],
 div[data-testid="stMultiSelect"],
 div[data-baseweb="select"] {
@@ -240,24 +225,19 @@ div[data-baseweb="select"] {
     text-align: right !important;
 }
 
-div[data-baseweb="select"] > div {
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-/* לא להעמיס תובנות */
+/* תובנות קומפקטיות - לא קופסאות גדולות */
 .insight-strip {
-    background: #ffffff;
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 22px;
-    padding: 14px 18px;
-    margin: 12px 0 18px 0;
-    box-shadow: 0 8px 22px rgba(16,32,51,.045);
+    border-radius: 20px;
+    padding: 14px 16px;
+    margin: 10px 0 18px 0;
+    box-shadow: 0 8px 20px rgba(16,32,51,.04);
 }
 
 .insight-title {
-    font-weight: 950;
     font-size: 1.05rem;
+    font-weight: 950;
     color: var(--text);
     margin-bottom: 10px;
 }
@@ -271,8 +251,7 @@ div[data-baseweb="select"] > div {
 .insight-pill {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding: 8px 12px;
+    padding: 7px 12px;
     border-radius: 999px;
     font-size: .88rem;
     font-weight: 850;
@@ -281,25 +260,10 @@ div[data-baseweb="select"] > div {
     color: #334155;
 }
 
-.insight-pill.good {
-    background: var(--green-bg);
-    color: var(--green);
-    border-color: #bbf7d0;
-}
+.insight-pill.good { background: var(--green-bg); color: var(--green); border-color: #bbf7d0; }
+.insight-pill.warn { background: var(--amber-bg); color: var(--amber); border-color: #f8ddb0; }
+.insight-pill.bad { background: var(--red-bg); color: var(--red); border-color: #ffd0cc; }
 
-.insight-pill.warn {
-    background: var(--amber-bg);
-    color: var(--amber);
-    border-color: #f8ddb0;
-}
-
-.insight-pill.bad {
-    background: var(--red-bg);
-    color: var(--red);
-    border-color: #ffd0cc;
-}
-
-/* Tables */
 .chart-card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -394,10 +358,29 @@ table.prof-table tbody tr:hover {
     line-height: 1.4;
 }
 
-.badge-red { color: var(--red); background: var(--red-bg); border: 1px solid #ffd0cc; }
-.badge-yellow { color: var(--amber); background: var(--amber-bg); border: 1px solid #f8ddb0; }
-.badge-green { color: var(--green); background: var(--green-bg); border: 1px solid #bbf7d0; }
-.badge-purple { color: var(--purple); background: var(--purple-bg); border: 1px solid #ddd6fe; }
+.badge-red {
+    color: var(--red);
+    background: var(--red-bg);
+    border: 1px solid #ffd0cc;
+}
+
+.badge-yellow {
+    color: var(--amber);
+    background: var(--amber-bg);
+    border: 1px solid #f8ddb0;
+}
+
+.badge-green {
+    color: var(--green);
+    background: var(--green-bg);
+    border: 1px solid #bbf7d0;
+}
+
+.badge-purple {
+    color: var(--purple);
+    background: var(--purple-bg);
+    border: 1px solid #ddd6fe;
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -692,12 +675,15 @@ def render_table(df, title, cols=None, money_cols=None, pct_cols=None, num_cols=
 def kpis(items, columns_per_row=4):
     if not items:
         return
+
     for start in range(0, len(items), columns_per_row):
         chunk = items[start:start + columns_per_row]
         cols = st.columns(len(chunk))
+
         for c, (label, value) in zip(cols, chunk):
             with c:
-                st.metric(str(label), str(value))
+                with st.container(border=True):
+                    st.metric(label, value)
 
 
 def chart_start():
@@ -847,9 +833,12 @@ def render_identity_cards(cards):
     for start in range(0, len(cards), 4):
         row_cards = cards[start:start + 4]
         cols = st.columns(len(row_cards))
+
         for col, (label, value) in zip(cols, row_cards):
             with col:
-                st.metric(str(label), safe_display(value))
+                with st.container(border=True):
+                    st.caption(str(label))
+                    st.markdown(f"**{safe_display(value)}**")
 
 
 def filter_select(df, label, col, key):
@@ -1059,7 +1048,6 @@ def download_excel(df_to_download, file_name):
 # ============================================================
 
 with st.sidebar:
-    st.markdown("### דשבורד מחקרים")
     page = st.radio(
         "ניווט",
         [
@@ -1074,7 +1062,6 @@ with st.sidebar:
         ],
         label_visibility="collapsed",
     )
-    st.caption(APP_VERSION)
 
 st.markdown(
     """
@@ -1109,14 +1096,7 @@ if st.session_state.uploaded_excel_file is None:
 
 uploaded_file = BytesIO(st.session_state.uploaded_excel_file)
 
-ok_col, reset_col = st.columns([5, 1])
-with ok_col:
-    st.success(f"הקובץ נטען בהצלחה: {st.session_state.uploaded_excel_name}")
-with reset_col:
-    if st.button("טעינת קובץ אחר"):
-        st.session_state.uploaded_excel_file = None
-        st.session_state.uploaded_excel_name = None
-        st.rerun()
+st.success(f"הקובץ נטען בהצלחה: {st.session_state.uploaded_excel_name}")
 
 # ============================================================
 # READ EXCEL
@@ -1648,12 +1628,9 @@ elif page == "דוח חוקר":
 
         if pay is not None and not pay.empty:
             render_table(pay, "פירוט הוצאות והכנסות מתוך גיליון הפירוט", payment_cols, money_cols, pct_cols, num_cols2, date_cols, 330)
-            download_excel(pay, "research_payment_details.xlsx")
 
 
 elif page == "מעקב הוצאות והכנסות":
-    st.caption(f"מקור נתונים לגיליון זה: {details_sheet}")
-
     source = df.copy()
 
     with st.container(border=True):
@@ -1700,4 +1677,3 @@ elif page == "מעקב הוצאות והכנסות":
         render_table(wbs_summary, "סיכום לפי WBS", money_cols=y, height=300)
 
     render_table(pay, "טבלת פירוט הוצאות והכנסות פר מחקר", payment_cols, money_cols, pct_cols, num_cols2, date_cols)
-    download_excel(pay, "payment_tracking_filtered.xlsx")
