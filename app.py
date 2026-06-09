@@ -1107,9 +1107,38 @@ st.markdown(
 
 uploaded_file = st.file_uploader("העלאת קובץ Excel", type=["xlsx"])
 
-if uploaded_file is None:
-    st.info("נא להעלות אקסל")
-    st.stop()
+# ============================================================
+# FILE UPLOAD
+# ============================================================
+
+if "uploaded_excel_file" not in st.session_state:
+    st.session_state.uploaded_excel_file = None
+
+if "uploaded_excel_name" not in st.session_state:
+    st.session_state.uploaded_excel_name = None
+
+upload_area = st.empty()
+
+if st.session_state.uploaded_excel_file is None:
+    with upload_area.container():
+        uploaded_file = st.file_uploader(
+            "העלאת קובץ Excel",
+            type=["xlsx"],
+            label_visibility="visible",
+        )
+
+    if uploaded_file is None:
+        st.info("נא להעלות אקסל")
+        st.stop()
+
+    st.session_state.uploaded_excel_file = uploaded_file.getvalue()
+    st.session_state.uploaded_excel_name = uploaded_file.name
+    upload_area.empty()
+    st.rerun()
+
+uploaded_file = BytesIO(st.session_state.uploaded_excel_file)
+
+st.success(f"הקובץ נטען בהצלחה: {st.session_state.uploaded_excel_name}")
 # ============================================================
 # READ EXCEL
 # ============================================================
