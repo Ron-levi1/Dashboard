@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v10-professional-clean-rtl-2026-06-09"
+APP_VERSION = "v11-professional-clean-rtl-fixed-html-2026-06-09"
 
 # ============================================================
 # GLOBAL RTL + PROFESSIONAL CSS
@@ -67,7 +67,7 @@ html, body, [class*="css"] {
     max-width: 1620px !important;
 }
 
-h1, h2, h3, h4, h5, h6, p, label, span, div {
+h1, h2, h3, h4, h5, h6, p, label, span {
     direction: rtl;
 }
 
@@ -103,28 +103,6 @@ section[data-testid="stSidebar"] div[data-testid="stRadio"] label {
     font-weight: 900;
     letter-spacing: .2px;
     text-align: center !important;
-}
-
-.page-header {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-right: 7px solid var(--blue);
-    border-radius: 24px;
-    padding: 20px 24px;
-    margin-bottom: 18px;
-    box-shadow: 0 10px 26px rgba(16,32,51,.055);
-}
-
-.page-header h2 {
-    color: var(--text);
-    font-size: 1.55rem;
-    font-weight: 950;
-    margin: 0 0 6px 0;
-}
-
-.page-header p {
-    color: var(--muted);
-    margin: 0;
 }
 
 div[data-testid="stFileUploader"] {
@@ -232,55 +210,6 @@ div[data-baseweb="select"] {
     text-align: right !important;
 }
 
-.insight-box {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 22px;
-    padding: 18px 20px;
-    margin-bottom: 18px;
-    box-shadow: 0 8px 24px rgba(16,32,51,.05);
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-.insight-title {
-    color: var(--text);
-    font-size: 1.12rem;
-    font-weight: 950;
-    margin-bottom: 10px;
-    direction: rtl !important;
-    text-align: right !important;
-}
-
-.insight-item {
-    background: #f8fafc;
-    border-right: 5px solid var(--blue);
-    border-left: none;
-    border-radius: 14px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    color: var(--text);
-    font-weight: 700;
-    direction: rtl !important;
-    text-align: right !important;
-    unicode-bidi: plaintext;
-}
-
-.insight-warning {
-    border-right-color: var(--amber);
-    background: var(--amber-bg);
-}
-
-.insight-danger {
-    border-right-color: var(--red);
-    background: var(--red-bg);
-}
-
-.insight-success {
-    border-right-color: var(--green);
-    background: var(--green-bg);
-}
-
 .chart-card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -295,46 +224,6 @@ div[data-baseweb="select"] {
     font-size: 1.18rem;
     font-weight: 950;
     margin: 18px 0 10px 0;
-}
-
-.identity-grid {
-    display: grid;
-    grid-template-columns: repeat(4,minmax(190px,1fr));
-    gap: 14px;
-    margin: 10px 0 20px;
-}
-
-.identity-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 14px 16px;
-    box-shadow: 0 8px 22px rgba(16,32,51,.045);
-    min-height: 88px;
-}
-
-.identity-label {
-    color: var(--muted);
-    font-size: .82rem;
-    font-weight: 800;
-    margin-bottom: 8px;
-}
-
-.identity-value {
-    color: var(--text);
-    font-size: 1.02rem;
-    font-weight: 900;
-    word-break: break-word;
-}
-
-.small-note {
-    color: var(--muted);
-    font-size: .9rem;
-    margin: -6px 0 12px 0;
-}
-
-div[data-testid="stDataFrame"] {
-    direction: rtl !important;
 }
 
 .table-wrap {
@@ -437,12 +326,6 @@ table.prof-table tbody tr:hover {
     color: var(--purple);
     background: var(--purple-bg);
     border: 1px solid #ddd6fe;
-}
-
-@media(max-width:1000px) {
-    .identity-grid {
-        grid-template-columns: repeat(2,1fr);
-    }
 }
 </style>
 """,
@@ -744,9 +627,9 @@ def render_table(df, title, cols=None, money_cols=None, pct_cols=None, num_cols=
     for _, row in shown.iterrows():
         cells = []
         for c in shown.columns:
-            cells.append(
-                f"<td title='{escape(safe_display(row[c]))}'>{format_html_cell(row[c], c, money_cols, pct_cols, num_cols, date_cols)}</td>"
-            )
+            title_value = escape(safe_display(row[c]), quote=True)
+            cell_value = format_html_cell(row[c], c, money_cols, pct_cols, num_cols, date_cols)
+            cells.append(f"<td title='{title_value}'>{cell_value}</td>")
         rows.append("<tr>" + "".join(cells) + "</tr>")
 
     html = f"""
@@ -955,25 +838,30 @@ def render_insights(title, items):
     if not items:
         items = [("אין תובנות להצגה בהתאם לסינון הנוכחי.", "warning")]
 
-    html = f"""
-    <div class="insight-box" dir="rtl" style="direction:rtl !important; text-align:right !important;">
-        <div class="insight-title" dir="rtl" style="direction:rtl !important; text-align:right !important;">
-            {escape(str(title))}
-        </div>
-    """
+    with st.container(border=True):
+        st.subheader(title)
 
-    allowed = {"success", "warning", "danger"}
+        for txt, kind in items:
+            txt = str(txt)
 
-    for txt, kind in items:
-        kind = kind if kind in allowed else "success"
-        html += f"""
-        <div class="insight-item insight-{kind}" dir="rtl" style="direction:rtl !important; text-align:right !important; unicode-bidi:plaintext;">
-            {escape(str(txt))}
-        </div>
-        """
+            if kind == "danger":
+                st.error(txt)
+            elif kind == "warning":
+                st.warning(txt)
+            else:
+                st.success(txt)
 
-    html += "</div>"
-    st.markdown(html, unsafe_allow_html=True)
+
+def render_identity_cards(cards):
+    for start in range(0, len(cards), 4):
+        row_cards = cards[start:start + 4]
+        cols = st.columns(len(row_cards))
+
+        for col, (label, value) in zip(cols, row_cards):
+            with col:
+                with st.container(border=True):
+                    st.caption(str(label))
+                    st.markdown(f"**{safe_display(value)}**")
 
 
 def filter_select(df, label, col, key):
@@ -1449,7 +1337,6 @@ def common_kpis(data, first_label="סה״כ מחקרים", first_val=None):
         ],
         columns_per_row=4,
     )
-
 
 # ============================================================
 # PAGES
@@ -1955,19 +1842,7 @@ elif page == "דוח חוקר":
             ("רמזור", r.get("רמזור ניהולי", "")),
         ]
 
-        html = '<div class="identity-grid">'
-
-        for label, value in cards:
-            html += f"""
-            <div class="identity-card">
-                <div class="identity-label">{escape(str(label))}</div>
-                <div class="identity-value">{escape(str(value))}</div>
-            </div>
-            """
-
-        html += "</div>"
-
-        st.markdown(html, unsafe_allow_html=True)
+        render_identity_cards(cards)
 
         pay = payment_for(details, one, C, D, selected_researcher)
 
