@@ -1335,7 +1335,7 @@ if page == "מנהלים":
                 s = df.groupby(C["approval_year"], as_index=False)[C["unique_study"]].sum().rename(columns={C["approval_year"]: "שנה", C["unique_study"]: "מספר מחקרים"})
             else:
                 s = df.groupby(C["approval_year"], as_index=False).size().rename(columns={C["approval_year"]: "שנה", "size": "מספר מחקרים"})
-            chart_start(); bar(s, "שנה", "מספר מחקרים", "מגמת מחקרים לפי שנה", 360); chart_end()
+            chart_start(); bar(s, "שנה", "מספר מחקרים", מספר מחקרים ממומנים (מסחריים ומענקים) לפי שנה", 360); chart_end()
     with c2:
         chart_start(); plot_realization_year(df, C["approval_year"], C["expected_income"], C["actual_income"]); chart_end()
 
