@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v15-requested-changes-keep-design-2026-06-09"
+APP_VERSION = "v16-small-fixes-keep-design-2026-06-09"
 
 # ============================================================
 # GLOBAL RTL + PROFESSIONAL CSS
@@ -218,6 +218,34 @@ div[data-testid="stMetricValue"] {
     text-align: right !important;
 }
 
+
+.metric-lines {
+    direction: rtl;
+    text-align: right;
+    color: var(--text);
+    line-height: 1.55;
+    font-weight: 950;
+    font-size: 1.05rem;
+    white-space: normal;
+}
+.metric-lines .metric-total {
+    font-size: 1.12rem;
+    margin-bottom: 4px;
+}
+.metric-lines .metric-years {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    font-size: .92rem;
+    color: #334155;
+}
+.metric-lines .metric-year {
+    background: #f8fafc;
+    border: 1px solid #e1e7ef;
+    border-radius: 999px;
+    padding: 2px 8px;
+}
+
 div[data-testid="stSelectbox"],
 div[data-testid="stMultiSelect"],
 div[data-baseweb="select"] {
@@ -413,6 +441,141 @@ def find_col(df, names):
         if key in normalized:
             return normalized[key]
     return None
+
+
+
+def find_col_fuzzy(df, includes, excludes=None):
+    """
+    זיהוי עמודה גם כשהכותרת לא זהה בדיוק אלא כוללת טקסט נוסף/רווחים/שורות.
+    """
+    excludes = excludes or []
+    includes = [norm(x).lower() for x in includes]
+    excludes = [norm(x).lower() for x in excludes]
+
+    best_col = None
+    best_score = -1
+
+    for col in df.columns:
+        c = norm(col).lower()
+        if any(ex in c for ex in excludes):
+            continue
+
+        score = 0
+        for inc in includes:
+            if inc and inc in c:
+                score += len(inc)
+
+        if score > best_score and score > 0:
+            best_score = score
+            best_col = col
+
+    return best_col
+
+
+def smart_find_col(df, exact_names, includes=None, excludes=None):
+    """
+    קודם מחפש התאמה מדויקת, ואם אין — מחפש התאמה חלקית.
+    """
+    exact = find_col(df, exact_names)
+    if exact:
+        return exact
+    return find_col_fuzzy(df, includes or exact_names, excludes or [])
+
+
+def compact_key(v):
+    s = clean_key(v).lower()
+    for ch in [" ", "-", "_", "/", "\\", ".", ":", ";", "(", ")", "[", "]"]:
+        s = s.replace(ch, "")
+    return s.lstrip("0")
+
+
+def key_variants(values):
+    out = set()
+    for v in values:
+        a = clean_key(v)
+        b = compact_key(v)
+        if a:
+            out.add(a)
+        if b:
+            out.add(b)
+    return out
+
+
+def series_matches_values(series, values):
+    vals = key_variants(values)
+    if not vals:
+        return pd.Series(False, index=series.index)
+    a = series.apply(clean_key).isin(vals)
+    b = series.apply(compact_key).isin(vals)
+    return a | b
+
+
+def researcher_matches(series, researcher):
+    target = norm(researcher).lower()
+    target_compact = compact_key(researcher)
+    if not target:
+        return pd.Series(False, index=series.index)
+
+    s_norm = series.astype(str).map(norm).str.lower()
+    s_compact = series.astype(str).map(compact_key)
+
+    return (
+        (s_norm == target)
+        | (s_norm.str.contains(target, regex=False, na=False))
+        | (pd.Series([target in x for x in s_norm], index=series.index))
+        | (s_compact == target_compact)
+        | (s_compact.str.contains(target_compact, regex=False, na=False))
+    )
+
+
+def numeric_col_strength(df, col):
+    if not col or col not in df.columns:
+        return 0
+    try:
+        return float(to_num(df[col]).abs().sum())
+    except Exception:
+        return 0
+
+
+def best_numeric_col(df, includes, excludes=None):
+    candidates = []
+    excludes = excludes or []
+    for col in df.columns:
+        c = norm(col).lower()
+        if any(norm(ex).lower() in c for ex in excludes):
+            continue
+        if any(norm(inc).lower() in c for inc in includes):
+            strength = numeric_col_strength(df, col)
+            candidates.append((strength, col))
+    candidates = sorted(candidates, reverse=True)
+    if candidates and candidates[0][0] > 0:
+        return candidates[0][1]
+    return None
+
+
+def improve_payment_columns(det_raw, D):
+    """
+    תיקון ספציפי לטאב מעקב הוצאות והכנסות:
+    אם עמודות הכסף לא זוהו או שהעמודה שזוהתה מחזירה 0, מחפש עמודה אחרת לפי טקסט חלקי וסכום מספרי.
+    """
+    fixed = D.copy()
+
+    rules = {
+        "budget_total": (["תקציב"], ["יתרה", "ניצול", "אחוז", "%", "wbs", "מספר"]),
+        "purchase_commitments": (["רכש", "התחייב"], ["יתרה", "ניצול", "אחוז", "%"]),
+        "execution_total": (["ביצוע"], ["יתרה", "ניצול", "אחוז", "%"]),
+        "balance": (["יתרה"], ["אחוז", "%"]),
+    }
+
+    for key, (includes, excludes) in rules.items():
+        current = fixed.get(key)
+        if (not current) or (current not in det_raw.columns) or numeric_col_strength(det_raw, current) == 0:
+            candidate = best_numeric_col(det_raw, includes, excludes)
+            if candidate:
+                fixed[key] = candidate
+
+    return fixed
+
 
 
 def clean_key(v):
@@ -690,7 +853,11 @@ def kpis(items, columns_per_row=4):
         for c, (label, value) in zip(cols, chunk):
             with c:
                 with st.container(border=True):
-                    st.metric(label, value)
+                    if isinstance(value, str) and value.strip().startswith("<div class=\"metric-lines\""):
+                        st.caption(str(label))
+                        st.markdown(value, unsafe_allow_html=True)
+                    else:
+                        st.metric(label, value)
 
 
 def chart_start():
@@ -754,7 +921,12 @@ def donut(df, names, values, title, h=380):
         df, names=names, values=values, hole=.54, title=title,
         color_discrete_sequence=["#245c9f", "#167c80", "#8a6f2a", "#6b7280", "#b7791f", "#5b4b8a", "#0f5f63"],
     )
-    fig.update_traces(textposition="inside", textinfo="percent+label")
+    # מציג בתוך הפאי גם מספר וגם אחוז
+    fig.update_traces(
+        textposition="inside",
+        texttemplate="%{label}<br>%{value:,.0f} (%{percent})",
+        hovertemplate="%{label}<br>מספר: %{value:,.0f}<br>אחוז: %{percent}<extra></extra>",
+    )
     st.plotly_chart(base(fig, h), use_container_width=True)
 
 
@@ -906,7 +1078,11 @@ def read_excel_smart(xls, sheet_name):
 def study_count_by_year_text(data, C):
     total = count_studies(data, C.get("unique_study"), C.get("study_id"))
     if not C.get("approval_year") or C["approval_year"] not in data.columns:
-        return number(total)
+        return f"""
+        <div class="metric-lines">
+            <div class="metric-total">סה״כ: {number(total)}</div>
+        </div>
+        """
 
     if C.get("unique_study") and C["unique_study"] in data.columns:
         s = data.groupby(C["approval_year"])[C["unique_study"]].sum()
@@ -918,10 +1094,16 @@ def study_count_by_year_text(data, C):
     else:
         s = data.groupby(C["approval_year"]).size()
 
-    parts = [f"סה״כ {number(total)}"]
+    year_items = []
     for year, val in s.sort_index().items():
-        parts.append(f"{safe_display(year)}: {number(val)}")
-    return " | ".join(parts)
+        year_items.append(f'<span class="metric-year">{escape(safe_display(year))}: {number(val)}</span>')
+
+    return f"""
+    <div class="metric-lines">
+        <div class="metric-total">סה״כ: {number(total)}</div>
+        <div class="metric-years">{''.join(year_items)}</div>
+    </div>
+    """
 
 
 def study_count_summary_df(data, C):
@@ -960,6 +1142,9 @@ def studies_by_year_funding_bar(data, C, title):
     if s.empty:
         st.info("אין מספיק נתונים להצגת הגרף.")
         return
+
+    # גרף עמודות מקובצות ולא stacked, כדי שגם מספרים קטנים יהיו קריאים יותר.
+    max_y = max(float(s["מספר מחקרים"].max()), 1)
     fig = px.bar(
         s,
         x="שנה",
@@ -967,12 +1152,19 @@ def studies_by_year_funding_bar(data, C, title):
         color="קבוצת מימון",
         text="תווית",
         title=title,
-        barmode="stack",
+        barmode="group",
         color_discrete_sequence=["#245c9f", "#167c80", "#8a6f2a", "#6b7280", "#b7791f"],
     )
-    fig.update_traces(textposition="inside", cliponaxis=False)
-    fig.update_layout(xaxis=dict(type="category"), yaxis=dict(gridcolor="#e2e8f0"), bargap=.34)
-    st.plotly_chart(base(fig, 410), use_container_width=True)
+    fig.update_traces(textposition="outside", cliponaxis=False)
+    fig.update_layout(
+        xaxis=dict(type="category"),
+        yaxis=dict(gridcolor="#e2e8f0", range=[0, max_y * 1.22]),
+        bargap=.28,
+        bargroupgap=.08,
+        uniformtext_minsize=10,
+        uniformtext_mode="show",
+    )
+    st.plotly_chart(base(fig, 430), use_container_width=True)
 
 
 def expected_actual_by_year_chart(data, C, title):
@@ -1130,7 +1322,7 @@ def choose_details_sheet(xls, studies_sheet):
 def payment_for(details, source, C, D, researcher=None):
     """
     מחבר בין studies_data לבין גיליון פירוט הוצאות והכנסות פר מחקר.
-    החיבור נעשה לפי מספר הלסינקי / פרוטוקול / WBS / חוקר.
+    החיבור נעשה בצורה גמישה לפי מספר הלסינקי / פרוטוקול / WBS / חוקר.
     """
     if details is None or details.empty:
         return pd.DataFrame()
@@ -1139,25 +1331,27 @@ def payment_for(details, source, C, D, researcher=None):
     masks = []
 
     if C.get("study_id") and D.get("study_id") and C["study_id"] in source.columns and D["study_id"] in d.columns:
-        ids = set(source[C["study_id"]].dropna().apply(clean_key))
-        ids.discard("")
-        if ids:
-            masks.append(d[D["study_id"]].apply(clean_key).isin(ids))
+        ids = list(source[C["study_id"]].dropna())
+        mask = series_matches_values(d[D["study_id"]], ids)
+        if mask.any():
+            masks.append(mask)
 
     if C.get("protocol") and D.get("protocol") and C["protocol"] in source.columns and D["protocol"] in d.columns:
-        ps = set(source[C["protocol"]].dropna().apply(clean_key))
-        ps.discard("")
-        if ps:
-            masks.append(d[D["protocol"]].apply(clean_key).isin(ps))
+        ps = list(source[C["protocol"]].dropna())
+        mask = series_matches_values(d[D["protocol"]], ps)
+        if mask.any():
+            masks.append(mask)
 
     if C.get("wbs") and D.get("wbs") and C["wbs"] in source.columns and D["wbs"] in d.columns:
-        ws = set(source[C["wbs"]].dropna().apply(clean_key))
-        ws.discard("")
-        if ws:
-            masks.append(d[D["wbs"]].apply(clean_key).isin(ws))
+        ws = list(source[C["wbs"]].dropna())
+        mask = series_matches_values(d[D["wbs"]], ws)
+        if mask.any():
+            masks.append(mask)
 
     if researcher and D.get("pi_name") and D["pi_name"] in d.columns:
-        masks.append(d[D["pi_name"]].astype(str).map(norm) == norm(researcher))
+        mask = researcher_matches(d[D["pi_name"]], researcher)
+        if mask.any():
+            masks.append(mask)
 
     if masks:
         m = masks[0]
@@ -1370,20 +1564,22 @@ C = {
 }
 
 D = {
-    "wbs": find_col(det_raw, ["אלמנט WBS", "מספר WBS"]),
-    "pi_name": find_col(det_raw, ["שם חוקר ראשי", "חוקר ראשי"]),
-    "protocol": find_col(det_raw, ["מספר פרוטוקול", "סימון פרוטוקול"]),
-    "study_id": find_col(det_raw, ["מספר הלסינקי", "study_id", "סוג תכנית-study_id", "סוג תכנית - study_id"]),
-    "site": find_col(det_raw, ["site", "SITE"]),
-    "budget_category": find_col(det_raw, ["קטגוריית סעיף תקציבי", "סעיף תקציבי"]),
-    "commitment_group": find_col(det_raw, ["קבוצת פריט התחייבות"]),
-    "commitment_group_desc": find_col(det_raw, ["תיאור קבוצת פריט התחייבות"]),
-    "description": find_col(det_raw, ["תיאור"]),
-    "budget_total": find_col(det_raw, ["סה\"כ תקציב מ", "סהכ תקציב מ", "סה\"כ תקציב", "סהכ תקציב", "תקציב", "תקציב מאושר", "סה\"כ תקציב מאושר", "סהכ תקציב מאושר"]),
-    "purchase_commitments": find_col(det_raw, ["התחייבויות רכש", "התחייבות רכש", "התחייבויות", "התחייבות"]),
-    "execution_total": find_col(det_raw, ["סה\"כ ביצוע", "סהכ ביצוע", "ביצוע", "ביצוע בפועל", "סה\"כ ביצוע בפועל", "סהכ ביצוע בפועל"]),
-    "balance": find_col(det_raw, ["יתרה לניצול", "יתרה", "יתרת תקציב", "יתרה תקציבית"]),
+    "wbs": smart_find_col(det_raw, ["אלמנט WBS", "מספר WBS", "WBS"], ["wbs"]),
+    "pi_name": smart_find_col(det_raw, ["שם חוקר ראשי", "חוקר ראשי"], ["חוקר"]),
+    "protocol": smart_find_col(det_raw, ["מספר פרוטוקול", "סימון פרוטוקול"], ["פרוטוקול"]),
+    "study_id": smart_find_col(det_raw, ["מספר הלסינקי", "study_id", "סוג תכנית-study_id", "סוג תכנית - study_id"], ["הלסינקי", "study_id", "סוג תכנית"]),
+    "site": smart_find_col(det_raw, ["site", "SITE"], ["site"]),
+    "budget_category": smart_find_col(det_raw, ["קטגוריית סעיף תקציבי", "סעיף תקציבי"], ["סעיף תקציבי", "קטגור"]),
+    "commitment_group": smart_find_col(det_raw, ["קבוצת פריט התחייבות"], ["קבוצת פריט"]),
+    "commitment_group_desc": smart_find_col(det_raw, ["תיאור קבוצת פריט התחייבות"], ["תיאור קבוצת"]),
+    "description": smart_find_col(det_raw, ["תיאור"], ["תיאור"], ["קבוצת"]),
+    "budget_total": smart_find_col(det_raw, ["סה\"כ תקציב מ", "סהכ תקציב מ", "סה\"כ תקציב", "סהכ תקציב", "תקציב", "תקציב מאושר", "סה\"כ תקציב מאושר", "סהכ תקציב מאושר"], ["תקציב"], ["יתרה", "ניצול", "אחוז", "%"]),
+    "purchase_commitments": smart_find_col(det_raw, ["התחייבויות רכש", "התחייבות רכש", "התחייבויות", "התחייבות"], ["רכש", "התחייב"], ["יתרה", "ניצול", "אחוז", "%"]),
+    "execution_total": smart_find_col(det_raw, ["סה\"כ ביצוע", "סהכ ביצוע", "ביצוע", "ביצוע בפועל", "סה\"כ ביצוע בפועל", "סהכ ביצוע בפועל"], ["ביצוע"], ["יתרה", "ניצול", "אחוז", "%"]),
+    "balance": smart_find_col(det_raw, ["יתרה לניצול", "יתרה", "יתרת תקציב", "יתרה תקציבית"], ["יתרה"], ["אחוז", "%"]),
 }
+
+D = improve_payment_columns(det_raw, D)
 
 # ============================================================
 # CLEANING + CALCULATIONS
@@ -1877,10 +2073,30 @@ elif page == "מעקב הוצאות והכנסות":
     pay = payment_for(details, source, C, D, selected_researcher)
 
     if pay.empty and not details.empty:
+        st.warning(
+            f"לא נמצאה התאמה מדויקת לגיליון הפירוט לפי חוקר/מחקר. "
+            f"נמצאו {len(details):,} שורות בגיליון הפירוט, אך 0 שורות לאחר הסינון. "
+            f"בדקי שהעמודות מספר הלסינקי/פרוטוקול/WBS/חוקר זהות בין הגיליונות."
+        )
         pay = get_department_from_source(details, source, C, D)
 
     if D["study_id"] and D["study_id"] in pay.columns and not pay.empty:
         pay = filter_multi(pay, "מחקר", D["study_id"], "pay_study")
+
+    with st.expander("בדיקת זיהוי עמודות בגיליון פירוט הוצאות והכנסות", expanded=False):
+        st.write("גיליון פירוט שזוהה:", details_sheet)
+        st.write({
+            "WBS": D.get("wbs"),
+            "חוקר": D.get("pi_name"),
+            "מספר הלסינקי/study_id": D.get("study_id"),
+            "מספר פרוטוקול": D.get("protocol"),
+            "סה״כ תקציב": D.get("budget_total"),
+            "התחייבויות רכש": D.get("purchase_commitments"),
+            "סה״כ ביצוע": D.get("execution_total"),
+            "יתרה לניצול": D.get("balance"),
+            "שורות לאחר סינון": len(pay),
+            "שורות בגיליון הפירוט": len(details),
+        })
 
     kpis([
         ("חוקר", selected_researcher or "-"),
