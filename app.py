@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v6-polished-ui-insights-2026-06-08"
+APP_VERSION = "v7-financial-insights-no-risk-2026-06-09"
 
 
 # ============================================================
@@ -26,6 +26,37 @@ APP_VERSION = "v6-polished-ui-insights-2026-06-08"
 
 st.markdown(
     """
+    div[data-testid="stFileUploader"] {
+    background: #ffffff;
+    border: 1px solid #dbe3ef;
+    border-radius: 18px;
+    padding: 14px;
+    margin-bottom: 18px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+div[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 20px !important;
+    border-color: #dbe3ef !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+}
+
+div[data-testid="stSelectbox"],
+div[data-testid="stMultiSelect"] {
+    direction: rtl;
+    text-align: right;
+}
+
+div[data-baseweb="select"] {
+    direction: rtl;
+    text-align: right;
+}
+
+.page-header {
+    border-right: 7px solid #2563eb;
+}
+    
     <style>
     html, body, [class*="css"] {
         direction: rtl;
@@ -133,30 +164,38 @@ st.markdown(
     }
 
     .insight-box {
-        background: #ffffff;
-        border: 1px solid #dbe3ef;
-        border-radius: 22px;
-        padding: 18px 20px;
-        margin-bottom: 18px;
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
-    }
+    background: #ffffff;
+    border: 1px solid #dbe3ef;
+    border-radius: 22px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+    direction: rtl;
+    text-align: right;
+}
 
-    .insight-title {
-        color: #0f172a;
-        font-size: 1.12rem;
-        font-weight: 950;
-        margin-bottom: 10px;
-    }
+.insight-title {
+    color: #0f172a;
+    font-size: 1.12rem;
+    font-weight: 950;
+    margin-bottom: 10px;
+    direction: rtl;
+    text-align: right;
+}
 
-    .insight-item {
-        background: #f8fafc;
-        border-right: 5px solid #2563eb;
-        border-radius: 14px;
-        padding: 10px 12px;
-        margin-bottom: 8px;
-        color: #0f172a;
-        font-weight: 700;
-    }
+.insight-item {
+    background: #f8fafc;
+    border-right: 5px solid #2563eb;
+    border-left: none;
+    border-radius: 14px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    color: #0f172a;
+    font-weight: 700;
+    direction: rtl;
+    text-align: right;
+    unicode-bidi: plaintext;
+}
 
     .insight-warning {
         border-right-color: #f59e0b;
@@ -516,6 +555,252 @@ def traffic_light(status, balance=None, days_to_end=None, recruitment_pct=None):
 
     return "🟢 ירוק"
 
+def classify_funding_group(value):
+    text = normalize_text(value).lower()
+
+    if any(word in text for word in ["גרנט", "grant", "מענק"]):
+        return "גרנט"
+
+    if any(word in text for word in ["יזם", "industry", "commercial", "חברה"]):
+        return "מחקר יזם"
+
+    if text.strip() == "":
+        return "לא סווג"
+
+    return "אחר"
+
+
+def add_revenue_realization(df, expected_col, actual_col):
+    data = df.copy()
+
+    if expected_col and actual_col and expected_col in data.columns and actual_col in data.columns:
+        expected = to_numeric(data[expected_col])
+        actual = to_numeric(data[actual_col])
+        data["שיעור מימוש הכנסות"] = np.where(expected > 0, actual / expected * 100, 0)
+    else:
+        data["שיעור מימוש הכנסות"] = 0
+
+    return data
+
+
+def build_clean_insights(data, funding_group_col=None):
+    insights = []
+
+    total_studies = count_unique_studies(data, C["unique_study"], C["study_id"])
+    expected_income = sum_col(data, C["expected_income"])
+    actual_income = sum_col(data, C["actual_income"])
+    total_expenses = sum_col(data, C["total_expenses"])
+
+    insights.append((f"סה״כ מוצגים {number(total_studies)} מחקרים בהתאם לסינון הנוכחי.", "success"))
+
+    if expected_income > 0:
+        realization = actual_income / expected_income * 100
+        if realization >= 80:
+            kind = "success"
+        elif realization >= 50:
+            kind = "warning"
+        else:
+            kind = "danger"
+
+        insights.append((f"שיעור מימוש ההכנסות בפועל מתוך צפי ההכנסות הוא {pct(realization)}.", kind))
+
+    if actual_income > 0:
+        expense_ratio = total_expenses / actual_income * 100
+        kind = "danger" if expense_ratio > 90 else "warning" if expense_ratio > 70 else "success"
+        insights.append((f"שיעור ההוצאות מתוך ההכנסות בפועל הוא {pct(expense_ratio)}.", kind))
+
+    if funding_group_col and funding_group_col in data.columns and C["unique_study"]:
+        funding_summary = (
+            data.groupby(funding_group_col)[C["unique_study"]]
+            .sum()
+            .sort_values(ascending=False)
+        )
+
+        if not funding_summary.empty:
+            main_group = funding_summary.index[0]
+            main_count = funding_summary.iloc[0]
+            insights.append((f"קבוצת המימון הדומיננטית היא {main_group}, עם {number(main_count)} מחקרים.", "success"))
+
+    if C["department"] and C["unique_study"] and C["department"] in data.columns:
+        dept_top = (
+            data.groupby(C["department"])[C["unique_study"]]
+            .sum()
+            .sort_values(ascending=False)
+        )
+
+        if not dept_top.empty:
+            insights.append((f"המחלקה המובילה בכמות מחקרים היא {dept_top.index[0]} עם {number(dept_top.iloc[0])} מחקרים.", "success"))
+
+    if C["pi"] and C["unique_study"] and C["pi"] in data.columns:
+        pi_top = (
+            data.groupby(C["pi"])[C["unique_study"]]
+            .sum()
+            .sort_values(ascending=False)
+        )
+
+        if not pi_top.empty:
+            insights.append((f"החוקר המוביל בכמות מחקרים הוא {pi_top.index[0]} עם {number(pi_top.iloc[0])} מחקרים.", "success"))
+
+    over_budget = len(data[data["סטטוס ניצול תקציב - מחושב"] == "חריגה"])
+    low_recruit = len(data[data["סטטוס גיוס"].isin(["אין גיוס", "גיוס נמוך"])])
+
+    if over_budget > 0:
+        insights.append((f"{number(over_budget)} מחקרים נמצאים בחריגה תקציבית ודורשים בדיקה.", "danger"))
+
+    if low_recruit > 0:
+        insights.append((f"{number(low_recruit)} מחקרים עם גיוס נמוך או ללא גיוס.", "warning"))
+
+    return insights
+
+
+def plot_revenue_realization_by_year(data, year_col):
+    if not year_col or year_col not in data.columns:
+        return
+
+    if "שיעור מימוש הכנסות" not in data.columns:
+        return
+
+    summary = (
+        data.groupby(year_col, as_index=False)
+        .agg(
+            צפי_הכנסות=(C["expected_income"], "sum"),
+            הכנסות_בפועל=(C["actual_income"], "sum")
+        )
+        .rename(columns={year_col: "שנה"})
+    )
+
+    summary["שיעור מימוש הכנסות"] = np.where(
+        summary["צפי_הכנסות"] > 0,
+        summary["הכנסות_בפועל"] / summary["צפי_הכנסות"] * 100,
+        0
+    )
+
+    summary["תווית"] = summary["שיעור מימוש הכנסות"].apply(lambda x: f"{x:.1f}%")
+    summary["שנה"] = summary["שנה"].astype(str)
+
+    fig = px.bar(
+        summary,
+        x="שנה",
+        y="שיעור מימוש הכנסות",
+        text="תווית",
+        title="שיעור מימוש הכנסות בפועל מתוך צפי לפי שנה",
+    )
+
+    fig.update_traces(
+        textposition="outside",
+        cliponaxis=False,
+        marker_color="#0f766e"
+    )
+
+    fig.update_layout(
+        xaxis=dict(type="category", title="שנה"),
+        yaxis=dict(title="שיעור מימוש הכנסות (%)", gridcolor="#e2e8f0"),
+        bargap=0.38,
+    )
+
+    fig = plotly_base(fig, height=390)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def plot_funding_group_split(data):
+    if "קבוצת מימון" not in data.columns or not C["unique_study"]:
+        return
+
+    summary = (
+        data.groupby("קבוצת מימון", as_index=False)[C["unique_study"]]
+        .sum()
+        .rename(columns={C["unique_study"]: "מספר מחקרים"})
+    )
+
+    chart_card_start()
+    plot_donut(
+        summary,
+        "קבוצת מימון",
+        "מספר מחקרים",
+        "התפלגות מחקרים לפי קבוצת מימון",
+        height=380
+    )
+    chart_card_end()
+
+
+def plot_expense_distribution(data, title="התפלגות הוצאות"):
+    expense_cols = [
+        C["salary_expenses"],
+        C["materials_expenses"],
+        C["fixed_expenses"],
+        C["travel_expenses"],
+        C["internal_expenses"],
+    ]
+
+    expense_cols = [col for col in expense_cols if col and col in data.columns]
+
+    if not expense_cols:
+        st.info("לא נמצאו עמודות הוצאות להצגת התפלגות.")
+        return
+
+    summary = pd.DataFrame({
+        "סוג הוצאה": expense_cols,
+        "סכום": [sum_col(data, col) for col in expense_cols]
+    })
+
+    summary = summary[summary["סכום"] > 0]
+
+    if summary.empty:
+        st.info("אין הוצאות להצגה בהתאם לסינון הנוכחי.")
+        return
+
+    chart_card_start()
+    plot_donut(summary, "סוג הוצאה", "סכום", title, height=380)
+    chart_card_end()
+
+
+def plot_researcher_budget_execution(payment_details):
+    cols = [
+        D["budget_total"],
+        D["purchase_commitments"],
+        D["execution_total"],
+        D["balance"],
+    ]
+
+    cols = [col for col in cols if col and col in payment_details.columns]
+
+    if not cols:
+        st.info("לא נמצאו עמודות תקציב / התחייבויות / ביצוע להצגה.")
+        return
+
+    summary = pd.DataFrame({
+        "מדד": cols,
+        "סכום": [sum_col(payment_details, col) for col in cols]
+    })
+
+    summary = summary[summary["סכום"] != 0]
+
+    if summary.empty:
+        st.info("אין נתונים תקציביים להצגה.")
+        return
+
+    summary["תווית"] = summary["סכום"].apply(compact_number)
+
+    fig = px.bar(
+        summary,
+        x="מדד",
+        y="סכום",
+        text="תווית",
+        title="תקציב מול התחייבויות רכש, ביצוע ויתרה",
+        color="מדד",
+        color_discrete_sequence=["#1d4ed8", "#f59e0b", "#ef4444", "#10b981"]
+    )
+
+    fig.update_traces(textposition="outside", cliponaxis=False)
+    fig.update_layout(
+        xaxis=dict(title=""),
+        yaxis=dict(title="סכום", gridcolor="#e2e8f0"),
+        showlegend=False,
+    )
+
+    fig = plotly_base(fig, height=390)
+    st.plotly_chart(fig, use_container_width=True)
+
 
 def risk_level(score):
     try:
@@ -760,33 +1045,55 @@ def explain_metrics():
     with st.expander("ℹ️ הסבר על המדדים בדשבורד", expanded=False):
         st.markdown(
             """
-            **רמת סיכון** היא מדד מחושב שמטרתו לזהות מחקרים שדורשים תשומת לב ניהולית.
+            <div style="direction:rtl; text-align:right; line-height:1.8;">
 
-            הניקוד מחושב כך:
+            **שיעור מימוש הכנסות**  
+            מציג כמה מתוך צפי ההכנסות אכן התקבל בפועל.
 
-            | אינדיקציה | ניקוד |
-            |---|---:|
-            | חריגה תקציבית | 3 |
-            | יתרה שלילית | 3 |
-            | גיוס נמוך / אין גיוס | 2 |
-            | מחקר שמסתיים תוך 60 יום | 2 |
-            | קרוב לניצול מלא | 2 |
-            | ניצול נמוך | 1 |
+            הנוסחה:
+            <br>
+            <b>הכנסות בפועל / צפי הכנסות × 100</b>
 
-            פירוש הציון:
+            לדוגמה: אם צפי ההכנסות הוא 100,000 ₪ וההכנסות בפועל הן 60,000 ₪, שיעור המימוש הוא 60%.
 
-            | ציון | רמת סיכון |
+            ---
+
+            **סטטוס ניצול תקציב**  
+            מחושב לפי אחוז ניצול התקציב:
+            <br>
+            <b>סה״כ ניצול / תקציב × 100</b>
+
+            | אחוז ניצול | סטטוס |
             |---:|---|
-            | 0 | תקין |
-            | 1–2 | סיכון נמוך |
-            | 3–5 | סיכון בינוני |
-            | 6 ומעלה | סיכון גבוה |
+            | עד 20% | ניצול נמוך |
+            | 20%–80% | תקין |
+            | 80%–100% | קרוב לניצול מלא |
+            | מעל 100% | חריגה |
 
-            **פעולה מומלצת** היא המלצה אוטומטית שנבנית לפי סיבת ההתראה: חריגה תקציבית, גיוס נמוך, סיום קרוב, יתרה שלילית ועוד.
+            ---
 
-            **רמזור ניהולי** הוא סיווג צבעוני מהיר:
-            🔴 דורש טיפול / חריגה, 🟡 דורש בדיקה, 🟢 תקין.
-            """
+            **סטטוס גיוס משתתפים**  
+            מחושב לפי:
+            <br>
+            <b>משתתפים בפועל / צפי משתתפים × 100</b>
+
+            ---
+
+            **רמזור ניהולי**  
+            הרמזור הוא אינדיקציה מהירה בלבד:
+            <br>
+            🔴 דורש טיפול / חריגה  
+            🟡 דורש בדיקה  
+            🟢 תקין
+
+            ---
+
+            **הפרדה בין מחקרי יזם לגרנט**  
+            הדשבורד מסווג מחקרים לפי עמודת סוג המימון. אם מופיע ערך כמו "יזם" הוא יסווג כמחקר יזם. אם מופיע "גרנט" / "מענק" / "Grant" הוא יסווג כגרנט.
+
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
 
@@ -1189,20 +1496,16 @@ df["רמזור ניהולי"] = df.apply(
     axis=1,
 )
 
-risk_score = pd.Series(0, index=df.index)
-risk_score += np.where(df["סטטוס ניצול תקציב - מחושב"] == "חריגה", 3, 0)
-risk_score += np.where(df["סטטוס ניצול תקציב - מחושב"] == "קרוב לניצול מלא", 2, 0)
-risk_score += np.where(df["סטטוס ניצול תקציב - מחושב"] == "ניצול נמוך", 1, 0)
-risk_score += np.where(df["סטטוס גיוס"].isin(["אין גיוס", "גיוס נמוך"]), 2, 0)
-risk_score += np.where((df["ימים לסיום"] >= 0) & (df["ימים לסיום"] <= 60), 2, 0)
+# ============================================================
+# FUNDING GROUP + REVENUE REALIZATION
+# ============================================================
 
-if C["balance"] and C["balance"] in df.columns:
-    risk_score += np.where(to_numeric(df[C["balance"]]) < 0, 3, 0)
+if C["funding_type"] and C["funding_type"] in df.columns:
+    df["קבוצת מימון"] = df[C["funding_type"]].apply(classify_funding_group)
+else:
+    df["קבוצת מימון"] = "לא סווג"
 
-df["ציון סיכון"] = risk_score
-df["רמת סיכון"] = df["ציון סיכון"].apply(risk_level)
-df["פעולה מומלצת"] = df.apply(lambda row: recommended_action(row, C["balance"]), axis=1)
-
+df = add_revenue_realization(df, C["expected_income"], C["actual_income"])
 
 # ============================================================
 # DISPLAY COLUMNS
@@ -1210,24 +1513,27 @@ df["פעולה מומלצת"] = df.apply(lambda row: recommended_action(row, C["
 
 study_summary_cols = [
     C["study_id"], C["protocol"], C["pi"], C["department"], C["sponsor"],
-    C["study_type"], C["approval_year"], C["expected_income"], C["actual_income"],
+    C["study_type"], C["funding_type"], "קבוצת מימון", C["approval_year"],
+    C["expected_income"], C["actual_income"], "שיעור מימוש הכנסות",
     C["total_expenses"], C["expected_participants"], C["actual_participants"],
-    "% גיוס משתתפים", "% ניצול תקציב - מחושב", "רמת סיכון", "פעולה מומלצת",
-    "רמזור ניהולי",
+    "% גיוס משתתפים", "% ניצול תקציב - מחושב",
+    "סטטוס ניצול תקציב - מחושב", "רמזור ניהולי",
 ]
 
 budget_status_cols = [
     C["study_id"], C["protocol"], C["pi"], C["department"], C["sponsor"],
-    C["wbs"], C["budget_name"], C["budget"], C["utilization_total"],
-    "% ניצול תקציב - מחושב", C["balance"], C["unreserved_balance"],
-    C["end_date"], "ימים לסיום", "סטטוס גיוס", "רמת סיכון",
-    "פעולה מומלצת", "רמזור ניהולי",
+    C["funding_type"], "קבוצת מימון", C["wbs"], C["budget_name"],
+    C["budget"], C["utilization_total"], "% ניצול תקציב - מחושב",
+    C["balance"], C["unreserved_balance"], C["end_date"],
+    "ימים לסיום", "סטטוס גיוס", "סטטוס ניצול תקציב - מחושב",
+    "רמזור ניהולי",
 ]
 
 researcher_short_cols = [
-    C["study_id"], C["protocol"], C["sponsor"], C["wbs"], C["budget_name"],
-    C["budget"], "% ניצול תקציב - מחושב", C["balance"], "רמת סיכון",
-    "רמזור ניהולי",
+    C["study_id"], C["protocol"], C["sponsor"], C["funding_type"],
+    "קבוצת מימון", C["wbs"], C["budget_name"],
+    C["budget"], "% ניצול תקציב - מחושב", C["balance"],
+    "סטטוס ניצול תקציב - מחושב", "רמזור ניהולי",
 ]
 
 researcher_identity_cols = [
@@ -1254,10 +1560,10 @@ money_cols = [
     D["execution_total"], D["balance"],
 ]
 
-percent_cols = ["% ניצול תקציב - מחושב", "% גיוס משתתפים"]
+percent_cols = ["% ניצול תקציב - מחושב", "% גיוס משתתפים", "שיעור מימוש הכנסות"]
 number_cols = [C["expected_participants"], C["actual_participants"], "ימים לסיום", "ציון סיכון"]
 date_cols = [C["approval_date"], C["start_date"], C["end_date"]]
-badge_cols = ["סטטוס ניצול תקציב - מחושב", "סטטוס גיוס", "רמזור ניהולי", "רמת סיכון"]
+badge_cols = ["סטטוס ניצול תקציב - מחושב", "סטטוס גיוס", "רמזור ניהולי", "קבוצת מימון"]
 
 
 # ============================================================
@@ -1265,59 +1571,7 @@ badge_cols = ["סטטוס ניצול תקציב - מחושב", "סטטוס גי�
 # ============================================================
 
 def build_general_insights(data):
-    insights = []
-
-    total_studies = count_unique_studies(data, C["unique_study"], C["study_id"])
-    expected_income = sum_col(data, C["expected_income"])
-    actual_income = sum_col(data, C["actual_income"])
-    total_expenses = sum_col(data, C["total_expenses"])
-
-    if total_studies:
-        insights.append((f"נמצאו {number(total_studies)} מחקרים בהתאם לסינון הנוכחי.", "success"))
-
-    if expected_income > 0:
-        realization = actual_income / expected_income * 100
-        kind = "success" if realization >= 70 else "warning"
-        insights.append((f"שיעור מימוש הכנסות בפועל מול צפי עומד על {pct(realization)}.", kind))
-
-    if actual_income > 0:
-        expense_ratio = total_expenses / actual_income * 100
-        kind = "danger" if expense_ratio > 90 else "warning" if expense_ratio > 70 else "success"
-        insights.append((f"שיעור הוצאות מתוך הכנסות בפועל עומד על {pct(expense_ratio)}.", kind))
-
-    high_risk_count = len(data[data["רמת סיכון"] == "סיכון גבוה"])
-    medium_risk_count = len(data[data["רמת סיכון"] == "סיכון בינוני"])
-
-    if high_risk_count > 0:
-        insights.append((f"{number(high_risk_count)} מחקרים מסווגים בסיכון גבוה ודורשים טיפול.", "danger"))
-
-    if medium_risk_count > 0:
-        insights.append((f"{number(medium_risk_count)} מחקרים מסווגים בסיכון בינוני.", "warning"))
-
-    if C["approval_year"] and C["unique_study"] and C["approval_year"] in data.columns:
-        yearly = data.groupby(C["approval_year"])[C["unique_study"]].sum().sort_index()
-        if len(yearly) >= 2:
-            last_year = yearly.index[-1]
-            prev_year = yearly.index[-2]
-            prev = yearly.iloc[-2]
-            current = yearly.iloc[-1]
-            if prev > 0:
-                change = (current - prev) / prev * 100
-                direction = "עלייה" if change >= 0 else "ירידה"
-                kind = "success" if change >= 0 else "warning"
-                insights.append((f"בשנת {last_year} נרשמה {direction} של {pct(abs(change))} בכמות המחקרים לעומת {prev_year}.", kind))
-
-    if C["department"] and C["unique_study"]:
-        dept_top = data.groupby(C["department"])[C["unique_study"]].sum().sort_values(ascending=False)
-        if not dept_top.empty:
-            insights.append((f"המחלקה המובילה בכמות מחקרים היא {dept_top.index[0]} עם {number(dept_top.iloc[0])} מחקרים.", "success"))
-
-    if C["pi"] and C["unique_study"]:
-        pi_top = data.groupby(C["pi"])[C["unique_study"]].sum().sort_values(ascending=False)
-        if not pi_top.empty:
-            insights.append((f"החוקר המוביל בכמות מחקרים הוא {pi_top.index[0]} עם {number(pi_top.iloc[0])} מחקרים.", "success"))
-
-    return insights
+    return build_clean_insights(data, "קבוצת מימון")
 
 
 # ============================================================
@@ -1452,6 +1706,13 @@ elif page == "🏥 כלל בית החולים":
             plot_grouped_bar(yearly_money, "שנה", money_year_cols, "צפי הכנסות, הכנסות בפועל, הוצאות ותקורה לפי שנה", "שנה", "סכום")
             chart_card_end()
 
+            chart_card_start()
+            plot_revenue_realization_by_year(hospital, C["approval_year"])
+            chart_card_end()
+            
+            plot_funding_group_split(hospital)
+
+    
     c1, c2 = st.columns(2)
 
     with c1:
@@ -1550,6 +1811,16 @@ elif page == "🏢 מחלקות":
 
     render_insights("תובנות מחלקה", build_general_insights(dept))
 
+    c1, c2 = st.columns(2)
+
+with c1:
+    plot_funding_group_split(dept)
+
+with c2:
+    chart_card_start()
+    plot_revenue_realization_by_year(dept, C["approval_year"])
+    chart_card_end()
+
     if C["approval_year"]:
         dept_money_cols = [C["expected_income"], C["actual_income"], C["total_expenses"]]
         dept_money_cols = [col for col in dept_money_cols if col]
@@ -1613,6 +1884,14 @@ elif page == "👩‍⚕️ חוקרים":
     )
 
     render_insights("תובנות חוקר", build_general_insights(pi_df))
+
+c1, c2 = st.columns(2)
+
+with c1:
+    plot_funding_group_split(pi_df)
+
+with c2:
+    plot_expense_distribution(pi_df, "התפלגות הוצאות לחוקר")
 
     if C["approval_year"]:
         pi_money_cols = [C["expected_income"], C["actual_income"], C["total_expenses"]]
@@ -1889,6 +2168,46 @@ elif page == "🧾 דוח חוקר":
         badge_cols=badge_cols,
         height=320,
     )
+
+    # ============================================================
+# RESEARCHER PAYMENT SUMMARY
+# ============================================================
+
+researcher_payment_source = r_df.copy()
+
+study_ids_for_researcher = (
+    researcher_payment_source[C["study_id"]].dropna().astype(str).unique().tolist()
+    if C["study_id"] and C["study_id"] in researcher_payment_source.columns
+    else []
+)
+
+protocols_for_researcher = (
+    researcher_payment_source[C["protocol"]].dropna().astype(str).unique().tolist()
+    if C["protocol"] and C["protocol"] in researcher_payment_source.columns
+    else []
+)
+
+researcher_payment_details = details.copy()
+payment_masks = []
+
+if D["study_id"] and study_ids_for_researcher:
+    payment_masks.append(researcher_payment_details[D["study_id"]].astype(str).isin(study_ids_for_researcher))
+
+if D["protocol"] and protocols_for_researcher:
+    payment_masks.append(researcher_payment_details[D["protocol"]].astype(str).isin(protocols_for_researcher))
+
+if D["pi_name"] and selected_researcher:
+    payment_masks.append(researcher_payment_details[D["pi_name"]].astype(str) == str(selected_researcher))
+
+if payment_masks:
+    combined_payment_mask = payment_masks[0]
+    for mask in payment_masks[1:]:
+        combined_payment_mask = combined_payment_mask | mask
+    researcher_payment_details = researcher_payment_details[combined_payment_mask]
+
+chart_card_start()
+plot_researcher_budget_execution(researcher_payment_details)
+chart_card_end()
 
     if C["study_id"] and not r_df.empty:
         page_header(
