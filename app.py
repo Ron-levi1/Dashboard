@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from io import BytesIO
+from html import escape
 
 # ============================================================
 # APP CONFIG
@@ -16,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v8-professional-rtl-dashboard-2026-06-09"
+APP_VERSION = "v9-professional-rtl-tables-2026-06-09"
 
 # ============================================================
 # GLOBAL RTL + PROFESSIONAL CSS
@@ -265,6 +266,76 @@ div[data-testid="stDataFrame"] {
     direction: rtl !important;
 }
 
+
+.table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 14px;
+    margin-top: 8px;
+    margin-bottom: 18px;
+    box-shadow: 0 8px 22px rgba(15,23,42,.045);
+    direction: rtl;
+    text-align: right;
+}
+
+.table-scroll {
+    overflow: auto;
+    max-height: 430px;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    direction: rtl;
+}
+
+table.prof-table {
+    width: 100%;
+    border-collapse: collapse;
+    direction: rtl;
+    text-align: right;
+    font-size: .9rem;
+    background: white;
+}
+
+table.prof-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #0f172a;
+    color: white;
+    padding: 11px 12px;
+    border-bottom: 1px solid #334155;
+    white-space: nowrap;
+    font-weight: 900;
+    text-align: right;
+}
+
+table.prof-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #0f172a;
+    white-space: nowrap;
+    max-width: 310px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: right;
+    direction: rtl;
+}
+
+table.prof-table tbody tr:nth-child(even) {
+    background: #f8fafc;
+}
+
+table.prof-table tbody tr:hover {
+    background: #e0f2fe;
+}
+
+.table-caption {
+    color: var(--muted);
+    font-size: .86rem;
+    margin: 4px 0 8px 0;
+    text-align: right;
+}
+
 @media(max-width:1000px) {
     .identity-grid {
         grid-template-columns: repeat(2,1fr);
@@ -486,21 +557,114 @@ def format_df(data, money_cols=None, pct_cols=None, num_cols=None, date_cols=Non
     return out
 
 
-def render_table(df, title, cols=None, money_cols=None, pct_cols=None, num_cols=None, date_cols=None, height=430):
-    st.markdown(f'<div class="table-title">{title}</div>', unsafe_allow_html=True)
+def safe_display(v):
+    if pd.isna(v):
+        return ""
+    s = str(v).strip()
+    if s.lower() in ["nan", "none", "nat"]:
+        return ""
+    if s.endswith(".0") and s[:-2].replace("-", "").isdigit():
+        return s[:-2]
+    return s
+
+
+def badge_html(v):
+    text = safe_display(v)
+
+    if "🔴" in text or "חריגה" in text or "אדום" in text:
+        cls = "badge-red"
+    elif "🟡" in text or "צהוב" in text or "ניצול נמוך" in text or "קרוב" in text or "גיוס נמוך" in text or "אין גיוס" in text:
+        cls = "badge-yellow"
+    elif "🟢" in text or "ירוק" in text or "תקין" in text:
+        cls = "badge-green"
+    elif text in ["מחקר יזם", "גרנט", "אחר", "לא סווג"]:
+        cls = "badge-purple"
+    else:
+        cls = ""
+
+    if cls:
+        return f'<span class="badge {cls}">{escape(text)}</span>'
+
+    return escape(text)
+
+
+def format_html_cell(value, col, money_cols=None, pct_cols=None, num_cols=None, date_cols=None):
+    money_cols = money_cols or []
+    pct_cols = pct_cols or []
+    num_cols = num_cols or []
+    date_cols = date_cols or []
+
+    if col in money_cols:
+        return escape(money(value))
+
+    if col in pct_cols:
+        return escape(pct(value))
+
+    if col in num_cols:
+        return escape(number(value))
+
+    if col in date_cols:
+        dt = pd.to_datetime(value, errors="coerce")
+        if pd.isna(dt):
+            return ""
+        return escape(dt.strftime("%d/%m/%Y"))
+
+    if col in ["סטטוס ניצול תקציב - מחושב", "סטטוס גיוס", "רמזור ניהולי", "קבוצת מימון"]:
+        return badge_html(value)
+
+    return escape(safe_display(value))
+
+
+def render_table(df, title, cols=None, money_cols=None, pct_cols=None, num_cols=None, date_cols=None, height=430, max_rows=180):
+    st.markdown(f'<div class="table-title">{escape(str(title))}</div>', unsafe_allow_html=True)
 
     if df is None or df.empty:
         st.info("אין נתונים להצגה בהתאם לבחירה הנוכחית.")
         return
 
     data = df.copy()
+
     if cols:
         cols = [c for c in cols if c and c in data.columns]
         if cols:
             data = data[cols]
 
-    data = format_df(data, money_cols, pct_cols, num_cols, date_cols)
-    st.dataframe(data, use_container_width=True, height=height, hide_index=True)
+    if data.empty:
+        st.info("אין נתונים להצגה בהתאם לבחירה הנוכחית.")
+        return
+
+    total_rows = len(data)
+    if total_rows > max_rows:
+        shown = data.head(max_rows)
+        caption = f"מוצגות {max_rows:,} שורות מתוך {total_rows:,}. ניתן להוריד את הדוח המלא לאקסל."
+    else:
+        shown = data
+        caption = f"מוצגות {total_rows:,} שורות."
+
+    headers = "".join(f"<th>{escape(str(c))}</th>" for c in shown.columns)
+
+    rows = []
+    for _, row in shown.iterrows():
+        cells = []
+        for c in shown.columns:
+            cells.append(
+                f"<td title='{escape(safe_display(row[c]))}'>{format_html_cell(row[c], c, money_cols, pct_cols, num_cols, date_cols)}</td>"
+            )
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+
+    html = f"""
+    <div class="table-wrap">
+        <div class="table-caption">{escape(caption)}</div>
+        <div class="table-scroll" style="max-height:{int(height)}px;">
+            <table class="prof-table">
+                <thead><tr>{headers}</tr></thead>
+                <tbody>{''.join(rows)}</tbody>
+            </table>
+        </div>
+    </div>
+    """
+
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def kpis(items, columns_per_row=4):
