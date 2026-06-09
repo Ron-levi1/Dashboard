@@ -966,15 +966,52 @@ def top10(df, label, value, title):
     if df is None or df.empty or label not in df.columns or value not in df.columns:
         st.info("אין מספיק נתונים להצגת הגרף.")
         return
+
     d = df.sort_values(value).tail(10).copy()
-    d["שם מקוצר"] = d[label].astype(str).apply(lambda s: s[:25] + "..." if len(s) > 28 else s)
+
+    d["שם מקוצר"] = (
+        d[label]
+        .astype(str)
+        .apply(lambda s: s if len(s) <= 32 else s[:32] + "…")
+    )
+
     d["תווית"] = d[value].apply(compact)
-    fig = px.bar(d, x=value, y="שם מקוצר", orientation="h", text="תווית", title=title, hover_data={label: True})
-    fig.update_traces(textposition="outside", cliponaxis=False, marker_color="#245c9f")
-    fig.update_layout(yaxis=dict(title=""), xaxis=dict(gridcolor="#e2e8f0"), showlegend=False)
-    st.plotly_chart(base(fig, max(420, len(d) * 48 + 140)), use_container_width=True)
 
+    fig = px.bar(
+        d,
+        x=value,
+        y="שם מקוצר",
+        orientation="h",
+        text="תווית",
+        title=title,
+        hover_data={label: True},
+    )
 
+    fig.update_traces(
+        textposition="outside",
+        cliponaxis=False,
+        marker_color="#245c9f",
+    )
+
+    fig.update_layout(
+        yaxis=dict(
+            title="",
+            automargin=True,
+            tickfont=dict(size=13),
+        ),
+        xaxis=dict(
+            gridcolor="#e2e8f0",
+            automargin=True,
+        ),
+        margin=dict(l=90, r=130, t=80, b=70),
+        showlegend=False,
+        uniformtext_minsize=11,
+        uniformtext_mode="show",
+    )
+
+    fig.update_yaxes(ticklabelposition="outside right")
+
+    st.plotly_chart(base(fig, max(420, len(d) * 52 + 150)), use_container_width=True)
 def explain():
     with st.expander("הסבר קצר על המדדים", expanded=False):
         st.markdown(
