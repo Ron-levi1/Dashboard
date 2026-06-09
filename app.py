@@ -878,16 +878,9 @@ def kpis(items, columns_per_row=4):
         for c, (label, value) in zip(cols, chunk):
             with c:
                 with st.container(border=True):
-                    if isinstance(value, str) and value.strip().startswith("<div class=\"metric-lines\""):
-                        st.markdown(
-                            f'''
-                            <div class="custom-metric-card">
-                                <div class="custom-metric-label">{escape(str(label))}</div>
-                                {value}
-                            </div>
-                            ''',
-                            unsafe_allow_html=True,
-                        )
+                    if isinstance(value, str) and "metric-lines" in value:
+                        st.caption(str(label))
+                        st.markdown(value, unsafe_allow_html=True)
                     else:
                         st.metric(label, value)
 
