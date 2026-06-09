@@ -47,6 +47,10 @@ html, body, [class*="css"] {
     background: var(--bg) !important;
 }
 
+* {
+    font-family: Calibri, sans-serif !important;
+}
+
 .block-container {
     padding-top: 1rem !important;
     padding-bottom: 2.2rem !important;
