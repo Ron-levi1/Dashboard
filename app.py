@@ -881,7 +881,7 @@ def filter_multi(df, label, col, key, default_all=False):
         vals,
         default=vals if default_all else [],
         key=key,
-        placeholder="בחרי ערכים לסינון",
+        placeholder="יש לבחור ערכים לסינון",
     )
     if selected:
         return df[df[col].astype(str).isin(selected)]
@@ -1074,7 +1074,7 @@ st.markdown(
 
     /* טקסט חדש במקום Upload */
     div[data-testid="stFileUploader"] button::after {
-        content: "בחרי קובץ";
+        content: "יש לבחור קובץ להעלאה";
         color: white !important;
         font-size: 1rem !important;
         font-weight: 900 !important;
@@ -1624,7 +1624,7 @@ elif page == "סטטוס תקציב וגיוס":
         chart_end()
 
     choice = st.radio(
-        "בחרי סוג בדיקה להצגה",
+        "יש לבחור סוג בדיקה להצגה",
         [
             "חריגה תקציבית",
             "קרוב לניצול מלא",
@@ -1696,7 +1696,7 @@ elif page == "דוח חוקר":
         study_options_df = study_options_df.drop_duplicates("__study_key__")
         study_options = study_options_df["__display__"].dropna().tolist()
 
-        selected_display = st.selectbox("בחרי מחקר ספציפי", study_options, key="researcher_specific_study")
+        selected_display = st.selectbox("יש לבחור מחקר ספציפי", study_options, key="researcher_specific_study")
         selected_study_key = selected_display.split(" | ")[0].strip()
         one = d[d[C["study_id"]].apply(clean_key) == selected_study_key]
     else:
