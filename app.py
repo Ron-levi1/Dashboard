@@ -1109,6 +1109,7 @@ def read_excel_smart(xls, sheet_name):
 
 def study_count_by_year_text(data, C):
     total = count_studies(data, C.get("unique_study"), C.get("study_id"))
+
     if not C.get("approval_year") or C["approval_year"] not in data.columns:
         return f"""
         <div class="metric-lines">
@@ -1136,7 +1137,6 @@ def study_count_by_year_text(data, C):
         <div class="metric-years">{''.join(year_items)}</div>
     </div>
     """
-
 
 def study_count_summary_df(data, C):
     if data is None or data.empty or not C.get("approval_year") or C["approval_year"] not in data.columns:
