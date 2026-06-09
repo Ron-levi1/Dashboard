@@ -830,9 +830,20 @@ def insights(df, C):
 
 
 def render_insights(title, items):
-    html = f'<div class="insight-box"><div class="insight-title">{title}</div>'
+    html = f"""
+    <div class="insight-box" dir="rtl" style="direction:rtl; text-align:right;">
+        <div class="insight-title" dir="rtl" style="direction:rtl; text-align:right;">
+            {title}
+        </div>
+    """
+
     for txt, kind in items:
-        html += f'<div class="insight-item insight-{kind}">{txt}</div>'
+        html += f"""
+        <div class="insight-item insight-{kind}" dir="rtl" style="direction:rtl; text-align:right; unicode-bidi:plaintext;">
+            {txt}
+        </div>
+        """
+
     html += "</div>"
     st.markdown(html, unsafe_allow_html=True)
 
@@ -991,9 +1002,6 @@ def budget_exec_chart(pay, D):
 # ============================================================
 
 with st.sidebar:
-    st.markdown("## 📊 מחקרים קליניים")
-    st.caption(APP_VERSION)
-
     page = st.radio(
         "ניווט",
         [
@@ -1011,9 +1019,8 @@ with st.sidebar:
 
 st.markdown(
     f"""
-    <div class="hero">
-        <h1>📊 דשבורד ניהולי למחקרים קליניים</h1>
-       
+    <div class="hero" style="text-align:center;">
+        <h1 style="text-align:center;">דשבורד ניהולי למחקרים קליניים</h1>
     </div>
     """,
     unsafe_allow_html=True,
@@ -1060,7 +1067,7 @@ C = {
     "start_date": find_col(raw, ["תאריך תחילה"]),
     "end_date": find_col(raw, ["תאריך סיום"]),
     "protocol": find_col(raw, ["סימון פרוטוקול", "מספר פרוטוקול"]),
-    "study_id": find_col(raw, ["סוג תכנית-study_id", "סוג תכנית – study_id", "סוג תכנית - study_id", "מספר הלסינקי"]),
+    "study_id": find_col(raw, ["study_id", "study_id", "study_id"]),
     "pi": find_col(raw, ["חוקר ראשי", "שם חוקר ראשי"]),
     "site": find_col(raw, ["site", "SITE"]),
     "department": find_col(raw, ["מחלקה"]),
@@ -1262,7 +1269,7 @@ def common_kpis(data, first_label="סה״כ מחקרים", first_val=None):
 # PAGES
 # ============================================================
 
-if page == "מנהלים":
+if page == "תקציר":
     explain()
     common_kpis(df)
     render_insights("תובנות מרכזיות", insights(df, C))
