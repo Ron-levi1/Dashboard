@@ -873,17 +873,21 @@ def kpis(items, columns_per_row=4):
 
     for start in range(0, len(items), columns_per_row):
         chunk = items[start:start + columns_per_row]
-        if len(chunk) == 4:
-    cols = st.columns([1, 1, 1, 1.5])
-else:
-    cols = st.columns(len(chunk))
+        cols = st.columns(len(chunk))
 
         for c, (label, value) in zip(cols, chunk):
             with c:
                 with st.container(border=True):
-                    if isinstance(value, str) and "metric-lines" in value:
-                        st.caption(str(label))
-                        st.markdown(value, unsafe_allow_html=True)
+                    if isinstance(value, str) and value.strip().startswith("<div class=\"metric-lines\""):
+                        st.markdown(
+                            f'''
+                            <div class="custom-metric-card">
+                                <div class="custom-metric-label">{escape(str(label))}</div>
+                                {value}
+                            </div>
+                            ''',
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.metric(label, value)
 
@@ -1105,13 +1109,13 @@ def read_excel_smart(xls, sheet_name):
 
 def study_count_by_year_text(data, C):
     total = count_studies(data, C.get("unique_study"), C.get("study_id"))
-
     if not C.get("approval_year") or C["approval_year"] not in data.columns:
         return f"""
         <div class="metric-lines">
             <div class="metric-total">סה״כ: {number(total)}</div>
         </div>
         """
+
     if C.get("unique_study") and C["unique_study"] in data.columns:
         s = data.groupby(C["approval_year"])[C["unique_study"]].sum()
     elif C.get("study_id") and C["study_id"] in data.columns:
