@@ -997,14 +997,14 @@ with st.sidebar:
     page = st.radio(
         "ניווט",
         [
-            "📌 תקציר מנהלים",
-            "🏥 כלל בית החולים",
-            "🏢 מחלקות",
-            "👩‍⚕️ חוקרים",
-            "🏭 יזמים",
-            "🚦 בקרת תקציב וגיוס",
-            "🧾 דוח חוקר",
-            "💳 מעקב דרישות תשלום",
+            "מנהלים",
+            "כלל בית החולים",
+            "מחלקות",
+            "חוקרים",
+            "יזמים",
+            "סטטוס תקציב וגיוס",
+            "דוח חוקר",
+            "מעקב הוצאות והכנסות",
         ],
         label_visibility="collapsed",
     )
@@ -1013,16 +1013,16 @@ st.markdown(
     f"""
     <div class="hero">
         <h1>📊 דשבורד ניהולי למחקרים קליניים</h1>
-        <p>תצוגת הנהלה למחקרים, תקציבים, הכנסות, הוצאות, חוקרים, מחלקות ויזמים | {APP_VERSION}</p>
+       
     </div>
     """,
     unsafe_allow_html=True,
 )
 
-uploaded_file = st.file_uploader("העלי קובץ Excel", type=["xlsx"])
+uploaded_file = st.file_uploader("העלאת קובץ Excel", type=["xlsx"])
 
 if uploaded_file is None:
-    st.info("יש להעלות קובץ Excel כדי להתחיל.")
+    st.info("נא להעלות אקסל")
     st.stop()
 
 # ============================================================
@@ -1046,7 +1046,7 @@ try:
     det_raw = normalize_columns(pd.read_excel(xls, sheet_name=details_sheet))
 
 except Exception as e:
-    st.error("לא הצלחתי לקרוא את קובץ האקסל.")
+    st.error("לא אותר קובץ אקסל. יש לנסות שוב")
     st.exception(e)
     st.stop()
 
@@ -1262,8 +1262,7 @@ def common_kpis(data, first_label="סה״כ מחקרים", first_val=None):
 # PAGES
 # ============================================================
 
-if page == "📌 תקציר מנהלים":
-    page_header("📌 תקציר מנהלים", "תמונת מצב מרוכזת להנהלה: מחקרים, הכנסות, הוצאות, מימון, תקציב וגיוס.")
+if page == "תקציר":
     explain()
     common_kpis(df)
     render_insights("תובנות מרכזיות", insights(df, C))
@@ -1298,8 +1297,7 @@ if page == "📌 תקציר מנהלים":
     render_table(attention, "מחקרים לבדיקה תקציבית / גיוס", budget_cols, money_cols, pct_cols, num_cols2, date_cols)
 
 
-elif page == "🏥 כלל בית החולים":
-    page_header("🏥 כלל בית החולים", "ניתוח רוחבי של כלל המחקרים לפי שנים, מימון, הכנסות, הוצאות וחוקרים מובילים.")
+elif page == "כלל בית החולים":
     explain()
     d = df.copy()
 
@@ -1363,8 +1361,7 @@ elif page == "🏥 כלל בית החולים":
             chart_end()
 
 
-elif page == "🏢 מחלקות":
-    page_header("🏢 מחלקות", "דוח מחלקתי ממוקד: מחקרים, מימון, הכנסות, הוצאות, תקציב וגיוס לפי מחלקה.")
+elif page == "מחלקות":
     explain()
     d = df.copy()
 
@@ -1399,11 +1396,8 @@ elif page == "🏢 מחלקות":
             chart_end()
 
     render_table(d, "טבלת מחקרים במחלקה", study_cols, money_cols, pct_cols, num_cols2, date_cols)
-    st.download_button("⬇️ הורדת דוח מחלקה לאקסל", download_excel({"department_report": d}), "department_report.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-
-elif page == "👩‍⚕️ חוקרים":
-    page_header("👩‍⚕️ חוקרים", "ניתוח לפי חוקר ראשי: הפרדה בין מחקרי יזם וגרנט, הכנסות, הוצאות, תקציב וגיוס.")
+   
+elif page == "חוקרים":
     explain()
     d = df.copy()
 
@@ -1449,9 +1443,8 @@ elif page == "👩‍⚕️ חוקרים":
     render_table(d, "טבלת מחקרים לחוקר", study_cols, money_cols, pct_cols, num_cols2, date_cols)
 
 
-elif page == "🏭 יזמים":
-    page_header("🏭 יזמים", "ניתוח לפי יזם: כמות מחקרים, צפי הכנסות, הכנסות בפועל והוצאות.")
-    d = df.copy()
+elif page == "יזמים":
+       d = df.copy()
 
     with st.container(border=True):
         f1, f2 = st.columns(2)
@@ -1498,9 +1491,8 @@ elif page == "🏭 יזמים":
         render_table(s, "טבלת סיכום יזמים", money_cols=["צפי הכנסות", "הכנסות בפועל", "סך הוצאות"], num_cols=["מספר רשומות", "מספר מחקרים"])
 
 
-elif page == "🚦 בקרת תקציב וגיוס":
-    page_header("🚦 בקרת תקציב וגיוס", "דוח בדיקה ניהולי: חריגות תקציב, ניצול נמוך, גיוס נמוך, סיום קרוב ורמזור ניהולי.")
-    explain()
+elif page == "סטטוס תקציב וגיוס":
+        explain()
     d = df.copy()
 
     with st.container(border=True):
@@ -1528,9 +1520,9 @@ elif page == "🚦 בקרת תקציב וגיוס":
 
     kpis([
         ("🔴 חריגה תקציבית", number(len(over))),
-        ("🟡 קרוב לניצול מלא", number(len(high))),
+        ("🟠 קרוב לניצול מלא", number(len(high))),
         ("🟡 ניצול נמוך", number(len(low))),
-        ("🟡 גיוס נמוך / אין גיוס", number(len(lowrec))),
+        ("גיוס נמוך / אין גיוס", number(len(lowrec))),
     ], columns_per_row=4)
 
     c1, c2 = st.columns(2)
@@ -1545,37 +1537,37 @@ elif page == "🚦 בקרת תקציב וגיוס":
         donut(s, "סטטוס גיוס", "מספר מחקרים", "התפלגות סטטוס גיוס")
         chart_end()
 
-    choice = st.radio(
-        "בחרי סוג בדיקה להצגה",
-        ["🔴 חריגה תקציבית", "🟡 קרוב לניצול מלא", "🟡 ניצול נמוך", "🟡 גיוס נמוך", "🟡 סיום קרוב", "📋 כל הסטטוסים"],
-        horizontal=True,
-    )
+choice = st.radio(
+    "בחרי סוג בדיקה להצגה",
+    [
+        "חריגה תקציבית",
+        "קרוב לניצול מלא",
+        "ניצול נמוך",
+        "גיוס נמוך",
+        "סיום קרוב",
+        "כל הסטטוסים"
+    ],
+    horizontal=True,
+)
 
     if choice == "🔴 חריגה תקציבית":
         table, title = over, "מחקרים בחריגה תקציבית"
-    elif choice == "🟡 קרוב לניצול מלא":
+    elif choice == "🟠 קרוב לניצול מלא":
         table, title = high, "מחקרים קרובים לניצול מלא"
     elif choice == "🟡 ניצול נמוך":
         table, title = low, "מחקרים בניצול נמוך"
-    elif choice == "🟡 גיוס נמוך":
+    elif choice == "גיוס נמוך":
         table, title = lowrec, "מחקרים עם גיוס נמוך / ללא גיוס"
-    elif choice == "🟡 סיום קרוב":
+    elif choice == "סיום קרוב":
         table, title = soon, "מחקרים שמסתיימים תוך 60 יום"
     else:
         table, title = d, "טבלת סטטוס תקציב וגיוס"
 
     render_table(table, title, budget_cols, money_cols, pct_cols, num_cols2, date_cols)
 
-    st.download_button(
-        "⬇️ הורדת דוח תקציב וגיוס לאקסל",
-        download_excel({"budget_recruitment_report": d}),
-        "budget_recruitment_report.xlsx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
 
 
-elif page == "🧾 דוח חוקר":
-    page_header("🧾 דוח חוקר", "בחירת חוקר ומחקר ספציפי לצורך צפייה בתעודת זהות ניהולית, תקציב, ביצוע והוצאות.")
+elif page == "דוח חוקר":
     explain()
 
     d = df.copy()
@@ -1590,7 +1582,7 @@ elif page == "🧾 דוח חוקר":
             d = filter_multi(d, "קבוצת מימון", "קבוצת מימון", "r_f")
 
     if d.empty:
-        st.info("אין מחקרים להצגה עבור הבחירה הנוכחית.")
+        st.info("לא נמצאו מחקרים להצגה.")
         st.stop()
 
     exp = sum_col(d, C["expected_income"])
@@ -1676,17 +1668,9 @@ elif page == "🧾 דוח חוקר":
         if pay is not None and not pay.empty:
             render_table(pay, "פירוט תקציבי מתוך מעקב דרישות תשלום", payment_cols, money_cols, pct_cols, num_cols2, date_cols, 330)
 
-        st.download_button(
-            "⬇️ הורדת דוח המחקר שנבחר לאקסל",
-            download_excel({"study_identity": one, "payment_details": pay if pay is not None else pd.DataFrame()}),
-            f"study_{selected_study_key}_report.xlsx",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
 
 
-elif page == "💳 מעקב דרישות תשלום":
-    page_header("💳 מעקב דרישות תשלום", "מעקב תקציבי לפי חוקר/מחקר: תקציב, התחייבויות, ביצוע, יתרה ופירוט לפי קטגוריות.")
-
+elif page == "מעקב דרישות תשלום":
     source = df.copy()
 
     with st.container(border=True):
@@ -1737,9 +1721,3 @@ elif page == "💳 מעקב דרישות תשלום":
 
     render_table(pay, "טבלת מעקב דרישות תשלום", payment_cols, money_cols, pct_cols, num_cols2, date_cols)
 
-    st.download_button(
-        "⬇️ הורדת מעקב דרישות תשלום לאקסל",
-        download_excel({"payment_tracking": pay}),
-        "researcher_payment_tracking.xlsx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
