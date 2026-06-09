@@ -1109,12 +1109,13 @@ def read_excel_smart(xls, sheet_name):
 
 def study_count_by_year_text(data, C):
     total = count_studies(data, C.get("unique_study"), C.get("study_id"))
+
     if not C.get("approval_year") or C["approval_year"] not in data.columns:
         return f"""
         <div class="metric-lines">
             <div class="metric-total">סה״כ: {number(total)}</div>
+        </div>
         """
-
     if C.get("unique_study") and C["unique_study"] in data.columns:
         s = data.groupby(C["approval_year"])[C["unique_study"]].sum()
     elif C.get("study_id") and C["study_id"] in data.columns:
