@@ -1262,7 +1262,7 @@ def common_kpis(data, first_label="סה״כ מחקרים", first_val=None):
 # PAGES
 # ============================================================
 
-if page == "תקציר":
+if page == "מנהלים":
     explain()
     common_kpis(df)
     render_insights("תובנות מרכזיות", insights(df, C))
@@ -1444,7 +1444,7 @@ elif page == "חוקרים":
 
 
 elif page == "יזמים":
-       d = df.copy()
+    d = df.copy()
 
     with st.container(border=True):
         f1, f2 = st.columns(2)
@@ -1492,7 +1492,7 @@ elif page == "יזמים":
 
 
 elif page == "סטטוס תקציב וגיוס":
-        explain()
+    explain()
     d = df.copy()
 
     with st.container(border=True):
@@ -1519,9 +1519,9 @@ elif page == "סטטוס תקציב וגיוס":
     soon = d[(d["ימים לסיום"] >= 0) & (d["ימים לסיום"] <= 60)]
 
     kpis([
-        ("🔴 חריגה תקציבית", number(len(over))),
-        ("🟠 קרוב לניצול מלא", number(len(high))),
-        ("🟡 ניצול נמוך", number(len(low))),
+        ("חריגה תקציבית", number(len(over))),
+        ("קרוב לניצול מלא", number(len(high))),
+        ("ניצול נמוך", number(len(low))),
         ("גיוס נמוך / אין גיוס", number(len(lowrec))),
     ], columns_per_row=4)
 
@@ -1531,30 +1531,31 @@ elif page == "סטטוס תקציב וגיוס":
         chart_start()
         donut(s, "סטטוס ניצול תקציב - מחושב", "מספר מחקרים", "התפלגות סטטוס ניצול תקציבי")
         chart_end()
+
     with c2:
         s = d.groupby("סטטוס גיוס", as_index=False).size().rename(columns={"size": "מספר מחקרים"})
         chart_start()
         donut(s, "סטטוס גיוס", "מספר מחקרים", "התפלגות סטטוס גיוס")
         chart_end()
 
-choice = st.radio(
-    "בחרי סוג בדיקה להצגה",
-    [
-        "חריגה תקציבית",
-        "קרוב לניצול מלא",
-        "ניצול נמוך",
-        "גיוס נמוך",
-        "סיום קרוב",
-        "כל הסטטוסים"
-    ],
-    horizontal=True,
-)
+    choice = st.radio(
+        "בחרי סוג בדיקה להצגה",
+        [
+            "חריגה תקציבית",
+            "קרוב לניצול מלא",
+            "ניצול נמוך",
+            "גיוס נמוך",
+            "סיום קרוב",
+            "כל הסטטוסים",
+        ],
+        horizontal=True,
+    )
 
-    if choice == "🔴 חריגה תקציבית":
+    if choice == "חריגה תקציבית":
         table, title = over, "מחקרים בחריגה תקציבית"
-    elif choice == "🟠 קרוב לניצול מלא":
+    elif choice == "קרוב לניצול מלא":
         table, title = high, "מחקרים קרובים לניצול מלא"
-    elif choice == "🟡 ניצול נמוך":
+    elif choice == "ניצול נמוך":
         table, title = low, "מחקרים בניצול נמוך"
     elif choice == "גיוס נמוך":
         table, title = lowrec, "מחקרים עם גיוס נמוך / ללא גיוס"
@@ -1564,7 +1565,6 @@ choice = st.radio(
         table, title = d, "טבלת סטטוס תקציב וגיוס"
 
     render_table(table, title, budget_cols, money_cols, pct_cols, num_cols2, date_cols)
-
 
 
 elif page == "דוח חוקר":
@@ -1670,7 +1670,7 @@ elif page == "דוח חוקר":
 
 
 
-elif page == "מעקב דרישות תשלום":
+elif page == "מעקב הוצאות והכנסות":
     source = df.copy()
 
     with st.container(border=True):
@@ -1720,4 +1720,3 @@ elif page == "מעקב דרישות תשלום":
             render_table(wbs_summary, "סיכום לפי WBS", money_cols=y, height=300)
 
     render_table(pay, "טבלת מעקב דרישות תשלום", payment_cols, money_cols, pct_cols, num_cols2, date_cols)
-
