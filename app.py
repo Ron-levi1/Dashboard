@@ -43,7 +43,7 @@ st.markdown(
 html, body, [class*="css"] {
     direction: rtl !important;
     text-align: right !important;
-    font-family: calibri, sans-serif !important;
+    font-family: Calibri, sans-serif !important;
     background: var(--bg) !important;
 }
 
