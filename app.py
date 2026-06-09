@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v13-minimal-fixes-keep-design-2026-06-09"
+APP_VERSION = "v15-requested-changes-keep-design-2026-06-09"
 
 # ============================================================
 # GLOBAL RTL + PROFESSIONAL CSS
@@ -396,6 +396,7 @@ def norm(v):
     v = str(v)
     v = v.replace("\u200f", "").replace("\u200e", "")
     v = v.replace("–", "-").replace("—", "-").replace("−", "-")
+    v = v.replace("״", '"').replace("׳", "'")
     return " ".join(v.split()).strip()
 
 
@@ -434,18 +435,24 @@ def clean_key(v):
 def to_num(s):
     if s is None:
         return pd.Series(dtype="float64")
-    return (
-        s.astype(str)
-        .str.replace(",", "", regex=False)
+    x = s.astype(str).str.strip()
+    neg = x.str.match(r"^\(.*\)$", na=False)
+    x = (
+        x.str.replace(",", "", regex=False)
         .str.replace("₪", "", regex=False)
         .str.replace("$", "", regex=False)
         .str.replace("€", "", regex=False)
         .str.replace("%", "", regex=False)
+        .str.replace("\u200f", "", regex=False)
+        .str.replace("\u200e", "", regex=False)
+        .str.replace("(", "", regex=False)
+        .str.replace(")", "", regex=False)
         .str.strip()
-        .replace({"": np.nan, "nan": np.nan, "None": np.nan, "NaT": np.nan})
-        .pipe(pd.to_numeric, errors="coerce")
-        .fillna(0)
+        .replace({"": np.nan, "nan": np.nan, "None": np.nan, "NaT": np.nan, "-": np.nan})
     )
+    out = pd.to_numeric(x, errors="coerce").fillna(0)
+    out[neg] = -out[neg]
+    return out
 
 
 def make_numeric(df, cols):
@@ -866,6 +873,208 @@ def filter_multi(df, label, col, key, default_all=False):
     return df
 
 
+def read_excel_smart(xls, sheet_name):
+    """
+    קורא גיליון גם כאשר הכותרות לא נמצאות בשורה הראשונה.
+    שומר על studies_data כרגיל, אבל מציל בעיקר את גיליון פירוט הוצאות והכנסות.
+    """
+    preview = pd.read_excel(xls, sheet_name=sheet_name, header=None, nrows=25)
+    header_keywords = [
+        "מספר הלסינקי", "study_id", "סוג תכנית-study_id", "מספר פרוטוקול",
+        "שם חוקר ראשי", "חוקר ראשי", "קטגוריית סעיף תקציבי",
+        "סהכ תקציב", "סה\"כ תקציב", "התחייבויות רכש",
+        "סהכ ביצוע", "סה\"כ ביצוע", "יתרה לניצול", "אלמנט WBS"
+    ]
+
+    best_row = 0
+    best_score = -1
+
+    for i in range(len(preview)):
+        row_values = [norm(v).lower() for v in preview.iloc[i].tolist()]
+        score = 0
+        for cell in row_values:
+            for kw in header_keywords:
+                if norm(kw).lower() in cell:
+                    score += 1
+        if score > best_score:
+            best_score = score
+            best_row = i
+
+    return normalize_columns(pd.read_excel(xls, sheet_name=sheet_name, header=best_row))
+
+
+def study_count_by_year_text(data, C):
+    total = count_studies(data, C.get("unique_study"), C.get("study_id"))
+    if not C.get("approval_year") or C["approval_year"] not in data.columns:
+        return number(total)
+
+    if C.get("unique_study") and C["unique_study"] in data.columns:
+        s = data.groupby(C["approval_year"])[C["unique_study"]].sum()
+    elif C.get("study_id") and C["study_id"] in data.columns:
+        temp = data[[C["approval_year"], C["study_id"]]].copy()
+        temp["__id__"] = temp[C["study_id"]].apply(clean_key)
+        temp = temp[temp["__id__"] != ""]
+        s = temp.groupby(C["approval_year"])["__id__"].nunique()
+    else:
+        s = data.groupby(C["approval_year"]).size()
+
+    parts = [f"סה״כ {number(total)}"]
+    for year, val in s.sort_index().items():
+        parts.append(f"{safe_display(year)}: {number(val)}")
+    return " | ".join(parts)
+
+
+def study_count_summary_df(data, C):
+    if data is None or data.empty or not C.get("approval_year") or C["approval_year"] not in data.columns:
+        return pd.DataFrame(columns=["שנה", "קבוצת מימון", "מספר מחקרים", "אחוז"])
+
+    if C.get("unique_study") and C["unique_study"] in data.columns:
+        s = (
+            data.groupby([C["approval_year"], "קבוצת מימון"], as_index=False)[C["unique_study"]]
+            .sum()
+            .rename(columns={C["approval_year"]: "שנה", C["unique_study"]: "מספר מחקרים"})
+        )
+    elif C.get("study_id") and C["study_id"] in data.columns:
+        temp = data[[C["approval_year"], "קבוצת מימון", C["study_id"]]].copy()
+        temp["__id__"] = temp[C["study_id"]].apply(clean_key)
+        temp = temp[temp["__id__"] != ""]
+        s = (
+            temp.groupby([C["approval_year"], "קבוצת מימון"], as_index=False)["__id__"]
+            .nunique()
+            .rename(columns={C["approval_year"]: "שנה", "__id__": "מספר מחקרים"})
+        )
+    else:
+        s = data.groupby([C["approval_year"], "קבוצת מימון"], as_index=False).size().rename(
+            columns={C["approval_year"]: "שנה", "size": "מספר מחקרים"}
+        )
+
+    s["סה״כ שנה"] = s.groupby("שנה")["מספר מחקרים"].transform("sum")
+    s["אחוז"] = np.where(s["סה״כ שנה"] > 0, s["מספר מחקרים"] / s["סה״כ שנה"] * 100, 0)
+    s["תווית"] = s.apply(lambda r: f'{number(r["מספר מחקרים"])} ({r["אחוז"]:.1f}%)', axis=1)
+    s["שנה"] = s["שנה"].astype(str)
+    return s
+
+
+def studies_by_year_funding_bar(data, C, title):
+    s = study_count_summary_df(data, C)
+    if s.empty:
+        st.info("אין מספיק נתונים להצגת הגרף.")
+        return
+    fig = px.bar(
+        s,
+        x="שנה",
+        y="מספר מחקרים",
+        color="קבוצת מימון",
+        text="תווית",
+        title=title,
+        barmode="stack",
+        color_discrete_sequence=["#245c9f", "#167c80", "#8a6f2a", "#6b7280", "#b7791f"],
+    )
+    fig.update_traces(textposition="inside", cliponaxis=False)
+    fig.update_layout(xaxis=dict(type="category"), yaxis=dict(gridcolor="#e2e8f0"), bargap=.34)
+    st.plotly_chart(base(fig, 410), use_container_width=True)
+
+
+def expected_actual_by_year_chart(data, C, title):
+    year = C.get("approval_year")
+    expected = C.get("expected_income")
+    actual = C.get("actual_income")
+    if not year or not expected or not actual or year not in data.columns or expected not in data.columns or actual not in data.columns:
+        st.info("אין מספיק נתונים להצגת הגרף.")
+        return
+
+    s = (
+        data.groupby(year, as_index=False)[[expected, actual]]
+        .sum()
+        .rename(columns={year: "שנה", expected: "צפי הכנסות", actual: "הכנסות בפועל"})
+    )
+    s["שנה"] = s["שנה"].astype(str)
+    s["אחוז מימוש"] = np.where(s["צפי הכנסות"] > 0, s["הכנסות בפועל"] / s["צפי הכנסות"] * 100, 0)
+
+    m = s.melt(
+        id_vars=["שנה", "אחוז מימוש"],
+        value_vars=["צפי הכנסות", "הכנסות בפועל"],
+        var_name="מדד",
+        value_name="סכום",
+    )
+    m["תווית"] = m.apply(
+        lambda r: f'{compact(r["סכום"])}' if r["מדד"] == "צפי הכנסות" else f'{compact(r["סכום"])} ({r["אחוז מימוש"]:.1f}%)',
+        axis=1,
+    )
+
+    fig = px.bar(
+        m,
+        x="שנה",
+        y="סכום",
+        color="מדד",
+        barmode="group",
+        text="תווית",
+        title=title,
+        color_discrete_sequence=["#245c9f", "#167c80"],
+    )
+    fig.update_traces(textposition="outside", cliponaxis=False)
+    fig.update_layout(xaxis=dict(type="category"), yaxis=dict(gridcolor="#e2e8f0"), bargap=.34)
+    st.plotly_chart(base(fig, 410), use_container_width=True)
+
+
+def expense_stacked_by_year_chart(data, C, expense_map, title):
+    year = C.get("approval_year")
+    if not year or year not in data.columns:
+        st.info("אין מספיק נתונים להצגת הגרף.")
+        return
+
+    items = []
+    for exp_name, col in expense_map.items():
+        if col and col in data.columns:
+            temp = data.groupby(year, as_index=False)[col].sum().rename(columns={year: "שנה", col: "סכום"})
+            temp["סוג הוצאה"] = exp_name
+            items.append(temp)
+
+    if not items:
+        st.info("אין הוצאות להצגה בהתאם לסינון הנוכחי.")
+        return
+
+    s = pd.concat(items, ignore_index=True)
+    s = s[s["סכום"] != 0]
+    if s.empty:
+        st.info("אין הוצאות להצגה בהתאם לסינון הנוכחי.")
+        return
+
+    s["שנה"] = s["שנה"].astype(str)
+    s["תווית"] = s["סכום"].apply(compact)
+
+    fig = px.bar(
+        s,
+        x="שנה",
+        y="סכום",
+        color="סוג הוצאה",
+        text="תווית",
+        title=title,
+        barmode="stack",
+        color_discrete_sequence=["#245c9f", "#167c80", "#8a6f2a", "#6b7280", "#b7791f"],
+    )
+    fig.update_traces(textposition="inside", cliponaxis=False)
+    fig.update_layout(xaxis=dict(type="category"), yaxis=dict(gridcolor="#e2e8f0"), bargap=.34)
+    st.plotly_chart(base(fig, 410), use_container_width=True)
+
+
+def get_department_from_source(details, source, C, D):
+    if details is None or details.empty or not C.get("department") or C["department"] not in source.columns:
+        return details
+    if D.get("study_id") and D["study_id"] in details.columns and C.get("study_id") and C["study_id"] in source.columns:
+        ids = set(source[C["study_id"]].dropna().apply(clean_key))
+        ids.discard("")
+        if ids:
+            return details[details[D["study_id"]].apply(clean_key).isin(ids)]
+    if D.get("protocol") and D["protocol"] in details.columns and C.get("protocol") and C["protocol"] in source.columns:
+        ps = set(source[C["protocol"]].dropna().apply(clean_key))
+        ps.discard("")
+        if ps:
+            return details[details[D["protocol"]].apply(clean_key).isin(ps)]
+    return details
+
+
+
 def choose_details_sheet(xls, studies_sheet):
     """
     תיקון קריטי:
@@ -873,6 +1082,7 @@ def choose_details_sheet(xls, studies_sheet):
     """
     preferred_names = [
         "פירוט הוצאות והכנסות פר מחקר",
+        "פירוט הווצאות והכנסות פר מחקר",
         "מעקב הוצאות והכנסות",
         "פירוט הוצאות והכנסות",
         "דרישות תשלום",
@@ -893,7 +1103,7 @@ def choose_details_sheet(xls, studies_sheet):
         if s == studies_sheet:
             continue
         try:
-            sample = normalize_columns(pd.read_excel(xls, sheet_name=s, nrows=20))
+            sample = read_excel_smart(xls, s).head(20)
         except Exception:
             continue
 
@@ -1051,7 +1261,6 @@ with st.sidebar:
     page = st.radio(
         "ניווט",
         [
-            "מנהלים",
             "כלל בית החולים",
             "מחלקות",
             "חוקרים",
@@ -1109,7 +1318,7 @@ try:
     details_sheet = choose_details_sheet(xls, studies_sheet)
 
     raw = normalize_columns(pd.read_excel(xls, sheet_name=studies_sheet))
-    det_raw = normalize_columns(pd.read_excel(xls, sheet_name=details_sheet))
+    det_raw = read_excel_smart(xls, details_sheet)
 
 except Exception as e:
     st.error("לא אותר קובץ אקסל תקין. יש לנסות שוב.")
@@ -1170,10 +1379,10 @@ D = {
     "commitment_group": find_col(det_raw, ["קבוצת פריט התחייבות"]),
     "commitment_group_desc": find_col(det_raw, ["תיאור קבוצת פריט התחייבות"]),
     "description": find_col(det_raw, ["תיאור"]),
-    "budget_total": find_col(det_raw, ["סה\"כ תקציב מ", "סהכ תקציב מ", "סה\"כ תקציב", "סהכ תקציב"]),
-    "purchase_commitments": find_col(det_raw, ["התחייבויות רכש"]),
-    "execution_total": find_col(det_raw, ["סה\"כ ביצוע", "סהכ ביצוע", "ביצוע"]),
-    "balance": find_col(det_raw, ["יתרה לניצול", "יתרה"]),
+    "budget_total": find_col(det_raw, ["סה\"כ תקציב מ", "סהכ תקציב מ", "סה\"כ תקציב", "סהכ תקציב", "תקציב", "תקציב מאושר", "סה\"כ תקציב מאושר", "סהכ תקציב מאושר"]),
+    "purchase_commitments": find_col(det_raw, ["התחייבויות רכש", "התחייבות רכש", "התחייבויות", "התחייבות"]),
+    "execution_total": find_col(det_raw, ["סה\"כ ביצוע", "סהכ ביצוע", "ביצוע", "ביצוע בפועל", "סה\"כ ביצוע בפועל", "סהכ ביצוע בפועל"]),
+    "balance": find_col(det_raw, ["יתרה לניצול", "יתרה", "יתרת תקציב", "יתרה תקציבית"]),
 }
 
 # ============================================================
@@ -1308,9 +1517,12 @@ def common_kpis(data, first_label="סה״כ מחקרים", first_val=None):
     exp = sum_col(data, C["expected_income"])
     act = sum_col(data, C["actual_income"])
     real = act / exp * 100 if exp > 0 else 0
+
+    first_value = first_val if first_val is not None else study_count_by_year_text(data, C)
+
     kpis(
         [
-            (first_label, first_val if first_val is not None else number(count_studies(data, C["unique_study"], C["study_id"]))),
+            (first_label, first_value),
             ("צפי הכנסות", money(exp)),
             ("הכנסות בפועל", money(act)),
             ("מימוש הכנסות", pct(real)),
@@ -1362,25 +1574,15 @@ elif page == "כלל בית החולים":
     common_kpis(d)
     render_insights("תובנות קצרות", insights(d, C))
 
-    if C["approval_year"]:
-        if C["unique_study"]:
-            s = d.groupby(C["approval_year"], as_index=False)[C["unique_study"]].sum().rename(columns={C["approval_year"]: "שנה", C["unique_study"]: "מספר מחקרים"})
-        else:
-            s = d.groupby(C["approval_year"], as_index=False).size().rename(columns={C["approval_year"]: "שנה", "size": "מספר מחקרים"})
-        chart_start(); bar(s, "שנה", "מספר מחקרים", "סה״כ מחקרים לפי שנה"); chart_end()
+    chart_start()
+    studies_by_year_funding_bar(d, C, "סה״כ מחקרים לפי שנה וקבוצת מימון")
+    chart_end()
 
+    if C["approval_year"]:
         ycols = [x for x in [C["expected_income"], C["actual_income"], C["total_expenses"], C["overhead"]] if x]
         if ycols:
             ym = d.groupby(C["approval_year"], as_index=False)[ycols].sum().rename(columns={C["approval_year"]: "שנה"})
             chart_start(); grouped(ym, "שנה", ycols, "צפי הכנסות, הכנסות בפועל, הוצאות ותקורה לפי שנה"); chart_end()
-
-    c1, c2 = st.columns(2)
-    with c1:
-        chart_start(); funding_chart(d, C["unique_study"]); chart_end()
-    with c2:
-        if C["funding_type"] and C["unique_study"]:
-            s = d.groupby(C["funding_type"], as_index=False)[C["unique_study"]].sum().rename(columns={C["funding_type"]: "סוג מימון", C["unique_study"]: "מספר מחקרים"})
-            chart_start(); donut(s, "סוג מימון", "מספר מחקרים", "התפלגות מחקרים לפי סוג מימון מפורט"); chart_end()
 
     c3, c4 = st.columns(2)
     with c3:
@@ -1408,9 +1610,9 @@ elif page == "מחלקות":
 
     c1, c2 = st.columns(2)
     with c1:
-        chart_start(); funding_chart(d, C["unique_study"]); chart_end()
+        chart_start(); studies_by_year_funding_bar(d, C, "מחקרים לפי שנה וקבוצת מימון במחלקה"); chart_end()
     with c2:
-        chart_start(); plot_realization_year(d, C["approval_year"], C["expected_income"], C["actual_income"]); chart_end()
+        chart_start(); expected_actual_by_year_chart(d, C, "הכנסות בפועל מול צפי הכנסות לפי שנה במחלקה"); chart_end()
 
     if C["approval_year"]:
         y = [x for x in [C["expected_income"], C["actual_income"], C["total_expenses"]] if x]
@@ -1426,19 +1628,24 @@ elif page == "חוקרים":
     d = df.copy()
 
     with st.container(border=True):
-        f1, f2, f3 = st.columns(3)
-        with f1: d, selected_pi = filter_select(d, "חוקר ראשי", C["pi"], "p_sel")
-        with f2: d = filter_multi(d, "שנה", C["approval_year"], "p_y")
-        with f3: d = filter_multi(d, "קבוצת מימון", "קבוצת מימון", "p_f")
+        f1, f2, f3, f4 = st.columns(4)
+        with f1:
+            d = filter_multi(d, "מחלקה", C["department"], "p_dept")
+        with f2:
+            d, selected_pi = filter_select(d, "חוקר ראשי", C["pi"], "p_sel")
+        with f3:
+            d = filter_multi(d, "שנה", C["approval_year"], "p_y")
+        with f4:
+            d = filter_multi(d, "קבוצת מימון", "קבוצת מימון", "p_f")
 
     common_kpis(d, "חוקר", selected_pi or "-")
     render_insights("תובנות קצרות", insights(d, C))
 
     c1, c2 = st.columns(2)
     with c1:
-        chart_start(); funding_chart(d, C["unique_study"]); chart_end()
+        chart_start(); studies_by_year_funding_bar(d, C, "מחקרים לפי שנה וקבוצת מימון לחוקר"); chart_end()
     with c2:
-        chart_start(); expense_chart(d, expense_map, "התפלגות הוצאות לחוקר"); chart_end()
+        chart_start(); expense_stacked_by_year_chart(d, C, expense_map, "התפלגות הוצאות לחוקר לפי שנה וסוג הוצאה"); chart_end()
 
     if C["study_id"] and not d.empty:
         opts = ["כל המחקרים"] + sorted(d[C["study_id"]].dropna().apply(clean_key).unique().tolist())
@@ -1465,37 +1672,59 @@ elif page == "יזמים":
         with f2: d = filter_multi(d, "שנה", C["approval_year"], "s_y")
 
     if C["sponsor"]:
-        s = d.groupby(C["sponsor"], as_index=False).size().rename(columns={C["sponsor"]: "יזם", "size": "מספר רשומות"})
-
         if C["unique_study"]:
-            count_df = d.groupby(C["sponsor"], as_index=False)[C["unique_study"]].sum().rename(columns={C["sponsor"]: "יזם", C["unique_study"]: "מספר מחקרים"})
-            s = s.merge(count_df, on="יזם", how="left")
+            s = d.groupby(C["sponsor"], as_index=False)[C["unique_study"]].sum().rename(columns={C["sponsor"]: "יזם", C["unique_study"]: "מספר מחקרים סה״כ"})
+        elif C["study_id"]:
+            temp = d[[C["sponsor"], C["study_id"]]].copy()
+            temp["__id__"] = temp[C["study_id"]].apply(clean_key)
+            temp = temp[temp["__id__"] != ""]
+            s = temp.groupby(C["sponsor"], as_index=False)["__id__"].nunique().rename(columns={C["sponsor"]: "יזם", "__id__": "מספר מחקרים סה״כ"})
         else:
-            s["מספר מחקרים"] = s["מספר רשומות"]
+            s = d.groupby(C["sponsor"], as_index=False).size().rename(columns={C["sponsor"]: "יזם", "size": "מספר מחקרים סה״כ"})
+
+        if C["approval_year"]:
+            if C["unique_study"]:
+                ytbl = d.pivot_table(index=C["sponsor"], columns=C["approval_year"], values=C["unique_study"], aggfunc="sum", fill_value=0)
+            elif C["study_id"]:
+                temp = d[[C["sponsor"], C["approval_year"], C["study_id"]]].copy()
+                temp["__id__"] = temp[C["study_id"]].apply(clean_key)
+                temp = temp[temp["__id__"] != ""]
+                ytbl = temp.pivot_table(index=C["sponsor"], columns=C["approval_year"], values="__id__", aggfunc=pd.Series.nunique, fill_value=0)
+            else:
+                ytbl = d.pivot_table(index=C["sponsor"], columns=C["approval_year"], aggfunc="size", fill_value=0)
+            ytbl.columns = [f"מספר מחקרים {safe_display(c)}" for c in ytbl.columns]
+            ytbl = ytbl.reset_index().rename(columns={C["sponsor"]: "יזם"})
+            s = s.merge(ytbl, on="יזם", how="left")
 
         for col, name in [(C["expected_income"], "צפי הכנסות"), (C["actual_income"], "הכנסות בפועל"), (C["total_expenses"], "סך הוצאות")]:
             if col:
                 temp = d.groupby(C["sponsor"], as_index=False)[col].sum().rename(columns={C["sponsor"]: "יזם", col: name})
                 s = s.merge(temp, on="יזם", how="left")
 
-        s = s.sort_values("מספר מחקרים", ascending=False)
+        s = s.sort_values("מספר מחקרים סה״כ", ascending=False)
         real = s["הכנסות בפועל"].sum() / s["צפי הכנסות"].sum() * 100 if "הכנסות בפועל" in s.columns and "צפי הכנסות" in s.columns and s["צפי הכנסות"].sum() > 0 else 0
 
         kpis([
             ("מספר יזמים", number(s["יזם"].nunique())),
-            ("סה״כ מחקרים", number(s["מספר מחקרים"].sum())),
+            ("סה״כ מחקרים", number(s["מספר מחקרים סה״כ"].sum())),
             ("צפי הכנסות", money(s.get("צפי הכנסות", pd.Series([0])).sum())),
             ("מימוש הכנסות", pct(real)),
         ])
 
         c1, c2 = st.columns(2)
         with c1:
-            chart_start(); top10(s, "יזם", "מספר מחקרים", "Top 10 יזמים לפי כמות מחקרים"); chart_end()
+            chart_start(); top10(s, "יזם", "מספר מחקרים סה״כ", "Top 10 יזמים לפי כמות מחקרים"); chart_end()
         with c2:
             if "צפי הכנסות" in s.columns:
                 chart_start(); top10(s, "יזם", "צפי הכנסות", "Top 10 יזמים לפי צפי הכנסות"); chart_end()
 
-        render_table(s, "טבלת סיכום יזמים", money_cols=["צפי הכנסות", "הכנסות בפועל", "סך הוצאות"], num_cols=["מספר רשומות", "מספר מחקרים"])
+        year_count_cols = [c for c in s.columns if str(c).startswith("מספר מחקרים ")]
+        render_table(
+            s,
+            "טבלת סיכום יזמים",
+            money_cols=["צפי הכנסות", "הכנסות בפועל", "סך הוצאות"],
+            num_cols=["מספר מחקרים סה״כ"] + year_count_cols,
+        )
 
 
 elif page == "סטטוס תקציב וגיוס":
@@ -1555,10 +1784,11 @@ elif page == "דוח חוקר":
     d = df.copy()
 
     with st.container(border=True):
-        f1, f2, f3 = st.columns(3)
-        with f1: d, selected_researcher = filter_select(d, "בחירת חוקר", C["pi"], "r_sel")
-        with f2: d = filter_multi(d, "שנה", C["approval_year"], "r_y")
-        with f3: d = filter_multi(d, "קבוצת מימון", "קבוצת מימון", "r_f")
+        f1, f2, f3, f4 = st.columns(4)
+        with f1: d = filter_multi(d, "מחלקה", C["department"], "r_dept")
+        with f2: d, selected_researcher = filter_select(d, "בחירת חוקר", C["pi"], "r_sel")
+        with f3: d = filter_multi(d, "שנה", C["approval_year"], "r_y")
+        with f4: d = filter_multi(d, "קבוצת מימון", "קבוצת מימון", "r_f")
 
     if d.empty:
         st.info("לא נמצאו מחקרים להצגה.")
@@ -1634,19 +1864,20 @@ elif page == "מעקב הוצאות והכנסות":
     source = df.copy()
 
     with st.container(border=True):
-        f1, f2, f3 = st.columns(3)
+        f1, f2, f3, f4 = st.columns(4)
         with f1:
-            source, selected_researcher = filter_select(source, "חוקר", C["pi"], "pay_sel")
+            source = filter_multi(source, "מחלקה", C["department"], "pay_dept")
         with f2:
-            source = filter_multi(source, "שנה", C["approval_year"], "pay_year")
+            source, selected_researcher = filter_select(source, "חוקר", C["pi"], "pay_sel")
         with f3:
+            source = filter_multi(source, "שנה", C["approval_year"], "pay_year")
+        with f4:
             source = filter_multi(source, "קבוצת מימון", "קבוצת מימון", "pay_funding")
 
     pay = payment_for(details, source, C, D, selected_researcher)
 
     if pay.empty and not details.empty:
-        st.warning("לא נמצאה התאמה בין studies_data לבין גיליון הפירוט לפי הלסינקי/פרוטוקול/WBS/חוקר. לכן מוצג גיליון הפירוט המלא.")
-        pay = details.copy()
+        pay = get_department_from_source(details, source, C, D)
 
     if D["study_id"] and D["study_id"] in pay.columns and not pay.empty:
         pay = filter_multi(pay, "מחקר", D["study_id"], "pay_study")
@@ -1658,22 +1889,42 @@ elif page == "מעקב הוצאות והכנסות":
         ("סה״כ ביצוע", money(sum_col(pay, D["execution_total"]))),
     ], columns_per_row=4)
 
-    chart_start(); budget_exec_chart(pay, D); chart_end()
+    chart_start()
+    budget_exec_chart(pay, D)
+    chart_end()
 
-    y = [D["budget_total"], D["purchase_commitments"], D["execution_total"], D["balance"]]
-    y = [x for x in y if x and x in pay.columns]
+    if D["budget_category"] and D["budget_category"] in pay.columns:
+        y = [D["budget_total"], D["purchase_commitments"], D["execution_total"], D["balance"]]
+        y = [x for x in y if x and x in pay.columns]
 
-    if D["budget_category"] and D["budget_category"] in pay.columns and y:
-        cat = pay.groupby(D["budget_category"], as_index=False)[y].sum().rename(columns={D["budget_category"]: "קטגוריית סעיף תקציבי"})
+        if y:
+            cat = (
+                pay.groupby(D["budget_category"], as_index=False)[y]
+                .sum()
+                .rename(columns={D["budget_category"]: "קטגוריית סעיף תקציבי"})
+            )
 
-        c1, c2 = st.columns(2)
-        with c1:
-            render_table(cat, "סיכום לפי קטגוריית סעיף תקציבי", money_cols=y, height=310)
-        with c2:
-            chart_start(); grouped(cat, "קטגוריית סעיף תקציבי", y, "תקציב, התחייבויות, ביצוע ויתרה לפי קטגוריה", 360); chart_end()
+            c1, c2 = st.columns(2)
 
-    if D["wbs"] and D["wbs"] in pay.columns and y:
-        wbs_summary = pay.groupby(D["wbs"], as_index=False)[y].sum().rename(columns={D["wbs"]: "אלמנט WBS"})
-        render_table(wbs_summary, "סיכום לפי WBS", money_cols=y, height=300)
+            with c1:
+                render_table(cat, "סיכום לפי קטגוריית סעיף תקציבי", money_cols=y, height=310)
+
+            with c2:
+                chart_start()
+                grouped(cat, "קטגוריית סעיף תקציבי", y, "תקציב, התחייבויות, ביצוע ויתרה לפי קטגוריה", 360)
+                chart_end()
+
+    if D["wbs"] and D["wbs"] in pay.columns:
+        y = [D["budget_total"], D["purchase_commitments"], D["execution_total"], D["balance"]]
+        y = [x for x in y if x and x in pay.columns]
+
+        if y:
+            wbs_summary = (
+                pay.groupby(D["wbs"], as_index=False)[y]
+                .sum()
+                .rename(columns={D["wbs"]: "אלמנט WBS"})
+            )
+
+            render_table(wbs_summary, "סיכום לפי WBS", money_cols=y, height=300)
 
     render_table(pay, "טבלת פירוט הוצאות והכנסות פר מחקר", payment_cols, money_cols, pct_cols, num_cols2, date_cols)
