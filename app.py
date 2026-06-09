@@ -1113,7 +1113,6 @@ def study_count_by_year_text(data, C):
         return f"""
         <div class="metric-lines">
             <div class="metric-total">סה״כ: {number(total)}</div>
-        </div>
         """
 
     if C.get("unique_study") and C["unique_study"] in data.columns:
