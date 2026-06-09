@@ -16,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-APP_VERSION = "v16-small-fixes-keep-design-2026-06-09"
+APP_VERSION = "v17-tiny-table-metric-fixes-keep-design-2026-06-09"
 
 # ============================================================
 # GLOBAL RTL + PROFESSIONAL CSS
@@ -244,6 +244,31 @@ div[data-testid="stMetricValue"] {
     border: 1px solid #e1e7ef;
     border-radius: 999px;
     padding: 2px 8px;
+}
+
+.custom-metric-card {
+    background: linear-gradient(135deg,#ffffff 0%,#f8fafc 100%);
+    border: 1px solid var(--border);
+    padding: 18px;
+    border-radius: 20px;
+    box-shadow: 0 8px 22px rgba(16,32,51,.055);
+    min-height: 108px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.custom-metric-label {
+    color: var(--muted);
+    font-weight: 800;
+    text-align: right !important;
+    margin-bottom: 8px;
+    font-size: .86rem;
+}
+.custom-metric-card .metric-lines {
+    min-height: 54px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 div[data-testid="stSelectbox"],
@@ -854,8 +879,15 @@ def kpis(items, columns_per_row=4):
             with c:
                 with st.container(border=True):
                     if isinstance(value, str) and value.strip().startswith("<div class=\"metric-lines\""):
-                        st.caption(str(label))
-                        st.markdown(value, unsafe_allow_html=True)
+                        st.markdown(
+                            f'''
+                            <div class="custom-metric-card">
+                                <div class="custom-metric-label">{escape(str(label))}</div>
+                                {value}
+                            </div>
+                            ''',
+                            unsafe_allow_html=True,
+                        )
                     else:
                         st.metric(label, value)
 
@@ -1362,6 +1394,69 @@ def payment_for(details, source, C, D, researcher=None):
     return d
 
 
+
+def value_from_single_row(source, col):
+    """מחזיר ערך אחד מתוך שורת/שורות המחקר שנבחרו, אם קיים."""
+    if source is None or source.empty or not col or col not in source.columns:
+        return ""
+    vals = [safe_display(v) for v in source[col].dropna().tolist() if safe_display(v)]
+    return vals[0] if vals else ""
+
+
+def ensure_payment_display_columns(pay, source, C, D):
+    """
+    מסדר את טבלת פירוט הוצאות והכנסות בלי לשנות את מקור הנתונים:
+    מוסיף עמודות תצוגה קבועות למספר הלסינקי/פרוטוקול/WBS גם אם בגיליון הפירוט הן חסרות או ריקות.
+    """
+    if pay is None or pay.empty:
+        return pay
+
+    out = pay.copy()
+
+    study_val = value_from_single_row(source, C.get("study_id"))
+    protocol_val = value_from_single_row(source, C.get("protocol"))
+    wbs_val = value_from_single_row(source, C.get("wbs"))
+
+    if D.get("study_id") and D["study_id"] in out.columns:
+        out["מספר הלסינקי"] = out[D["study_id"]].apply(safe_display)
+        if study_val:
+            out["מספר הלסינקי"] = out["מספר הלסינקי"].replace("", study_val)
+    else:
+        out["מספר הלסינקי"] = study_val
+
+    if D.get("protocol") and D["protocol"] in out.columns:
+        out["מספר פרוטוקול"] = out[D["protocol"]].apply(safe_display)
+        if protocol_val:
+            out["מספר פרוטוקול"] = out["מספר פרוטוקול"].replace("", protocol_val)
+    else:
+        out["מספר פרוטוקול"] = protocol_val
+
+    if D.get("wbs") and D["wbs"] in out.columns:
+        out["אלמנט WBS"] = out[D["wbs"]].apply(safe_display)
+        if wbs_val:
+            out["אלמנט WBS"] = out["אלמנט WBS"].replace("", wbs_val)
+    else:
+        out["אלמנט WBS"] = wbs_val
+
+    return out
+
+
+def clean_payment_columns(D):
+    """עמודות נקיות לטבלאות פירוט הוצאות והכנסות, ללא שם חוקר וקבוצות התחייבות."""
+    return [
+        "מספר הלסינקי",
+        "מספר פרוטוקול",
+        "אלמנט WBS",
+        D.get("site"),
+        D.get("budget_category"),
+        D.get("description"),
+        D.get("budget_total"),
+        D.get("purchase_commitments"),
+        D.get("execution_total"),
+        D.get("balance"),
+    ]
+
+
 def plot_realization_year(data, year, expected, actual):
     if not year or not expected or not actual:
         return
@@ -1688,6 +1783,8 @@ payment_cols = [
     D["description"], D["budget_total"], D["purchase_commitments"],
     D["execution_total"], D["balance"],
 ]
+
+payment_cols_clean = clean_payment_columns(D)
 
 money_cols = [
     C["expected_income"], C["actual_income"], C["total_expenses"], C["budget"],
@@ -2053,7 +2150,8 @@ elif page == "דוח חוקר":
         render_table(one, "פרטים מלאים למחקר שנבחר", identity_cols, money_cols, pct_cols, num_cols2, date_cols, 330)
 
         if pay is not None and not pay.empty:
-            render_table(pay, "פירוט הוצאות והכנסות מתוך גיליון הפירוט", payment_cols, money_cols, pct_cols, num_cols2, date_cols, 330)
+            pay_display = ensure_payment_display_columns(pay, one, C, D)
+            render_table(pay_display, "פירוט הוצאות והכנסות מתוך גיליון הפירוט", payment_cols_clean, money_cols, pct_cols, num_cols2, date_cols, 330)
 
 
 elif page == "מעקב הוצאות והכנסות":
@@ -2143,4 +2241,5 @@ elif page == "מעקב הוצאות והכנסות":
 
             render_table(wbs_summary, "סיכום לפי WBS", money_cols=y, height=300)
 
-    render_table(pay, "טבלת פירוט הוצאות והכנסות פר מחקר", payment_cols, money_cols, pct_cols, num_cols2, date_cols)
+    pay_display = ensure_payment_display_columns(pay, source, C, D)
+    render_table(pay_display, "טבלת פירוט הוצאות והכנסות פר מחקר", payment_cols_clean, money_cols, pct_cols, num_cols2, date_cols)
