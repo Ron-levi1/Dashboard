@@ -1022,14 +1022,75 @@ with st.sidebar:
     )
 
 st.markdown(
-    f"""
-    <div class="hero" style="text-align:center;">
-        <h1 style="text-align:center;">דשבורד ניהולי למחקרים קליניים</h1>
+    """
+    <style>
+    /* עיצוב אזור העלאת קובץ Excel */
+    div[data-testid="stFileUploader"] {
+        background: #ffffff !important;
+        border: 1px solid #dbe3ef !important;
+        border-radius: 22px !important;
+        padding: 22px !important;
+        margin: 0 auto 22px auto !important;
+        box-shadow: 0 8px 20px rgba(15,23,42,.04) !important;
+        text-align: center !important;
+        direction: rtl !important;
+    }
+
+    div[data-testid="stFileUploader"] label {
+        text-align: center !important;
+        display: block !important;
+        font-size: 1.15rem !important;
+        font-weight: 900 !important;
+        color: #0f172a !important;
+        margin-bottom: 12px !important;
+    }
+
+    div[data-testid="stFileUploader"] section {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        direction: rtl !important;
+        border: 1.5px dashed #cbd5e1 !important;
+        border-radius: 18px !important;
+        background: #f8fafc !important;
+        padding: 28px !important;
+    }
+
+    div[data-testid="stFileUploader"] button {
+        background: #0f766e !important;
+        color: white !important;
+        border-radius: 12px !important;
+        border: none !important;
+        padding: 10px 24px !important;
+        font-weight: 900 !important;
+        font-size: 1rem !important;
+        margin: 12px auto !important;
+    }
+
+    div[data-testid="stFileUploader"] small,
+    div[data-testid="stFileUploader"] span,
+    div[data-testid="stFileUploader"] p {
+        text-align: center !important;
+        direction: rtl !important;
+    }
+    </style>
+
+    <div class="hero" style="text-align:center !important;">
+        <h1 style="text-align:center !important; width:100%;">
+            דשבורד ניהולי למחקרים קליניים
+        </h1>
     </div>
     """,
     unsafe_allow_html=True,
 )
 
+uploaded_file = st.file_uploader("העלאת קובץ Excel", type=["xlsx"])
+
+if uploaded_file is None:
+    st.info("נא להעלות אקסל")
+    st.stop()
 uploaded_file = st.file_uploader("העלאת קובץ Excel", type=["xlsx"])
 
 if uploaded_file is None:
