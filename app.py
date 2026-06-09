@@ -1020,7 +1020,6 @@ with st.sidebar:
         ],
         label_visibility="collapsed",
     )
-
 st.markdown(
     """
     <style>
@@ -1058,15 +1057,35 @@ st.markdown(
         padding: 28px !important;
     }
 
+    /* תיקון הכפתור עצמו */
     div[data-testid="stFileUploader"] button {
+        position: relative !important;
         background: #0f766e !important;
-        color: white !important;
+        color: transparent !important;
+        font-size: 0 !important;
         border-radius: 12px !important;
         border: none !important;
         padding: 10px 24px !important;
-        font-weight: 900 !important;
-        font-size: 1rem !important;
         margin: 12px auto !important;
+        min-width: 170px !important;
+        height: 46px !important;
+        overflow: hidden !important;
+    }
+
+    /* טקסט חדש במקום Upload */
+    div[data-testid="stFileUploader"] button::after {
+        content: "בחרי קובץ";
+        color: white !important;
+        font-size: 1rem !important;
+        font-weight: 900 !important;
+        font-family: Calibri, Arial, sans-serif !important;
+        position: absolute !important;
+        inset: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        direction: rtl !important;
     }
 
     div[data-testid="stFileUploader"] small,
@@ -1091,12 +1110,6 @@ uploaded_file = st.file_uploader("העלאת קובץ Excel", type=["xlsx"])
 if uploaded_file is None:
     st.info("נא להעלות אקסל")
     st.stop()
-uploaded_file = st.file_uploader("העלאת קובץ Excel", type=["xlsx"])
-
-if uploaded_file is None:
-    st.info("נא להעלות אקסל")
-    st.stop()
-
 # ============================================================
 # READ EXCEL
 # ============================================================
